@@ -66,11 +66,11 @@ for f0 in freq.lin:
         s1 = b*l1
         s2 = b*l2
         M1 = np.matrix([[cos(s1),i*Z1*sin(s1)],[i*1.0/Z1*sin(s1),cos(s1)]]) # Coaxial Cable with length l1
-        M3 = np.matrix([[0,1/Ysq],[0,1]]) # Perfectly terminated SQUID
+        #M3 = np.matrix([[0,1/Ysq],[0,1]]) # Perfectly terminated SQUID
         #M2 = np.matrix([[cos(s2),i*Z2*sin(s2)],[i*1.0/Z2*sin(s2),cos(s2)]]) # Coplanar Stripline with leght l2 (including phase modulation of the SQUID)
-        #M3 = np.matrix([[1,Zsq],[0,1]]) # Non Perfect termination of the SQUID
-        #M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
-        M = M1*M3 # connect the elements
+        M3 = np.matrix([[1,Zsq],[0,1]]) # Non Perfect termination of the SQUID
+        M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
+        M = M1*M3*M4 # connect the elements
         A = M[0,0]
         B = M[0,1]
         C = M[1,0]
