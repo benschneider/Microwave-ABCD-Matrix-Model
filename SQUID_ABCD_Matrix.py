@@ -13,23 +13,21 @@ For Reference on ABCD Matrix: Microwave Engineering by David M. Pozar p. 185
 import numpy as np
 from numpy import pi, cos, sin, log
 import matplotlib
-#matplotlib.use('Qt4Agg')
-#matplotlib.use('WX')
-matplotlib.use('macosx') # fast on MAC
+matplotlib.use('macosx') # macosx, Qt4Agg, WX
 import matplotlib.pyplot as pl
 
 i = 1.0j
-flux0 = 2.07e-15    # Tm^2 ;Flux quanta: flux0 =  h / (2*charging energy)
+flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 Z0 = 50.0           # R; Input impedance
-Z1 = 1.0           # R; Impedance of cable
+Z1 = 1.0            # R; Impedance of cable
 Z2 = 50.0           # R; Impedance of Coplanar Waveguide
 l1 = 0.1            # m;
-v = 2.0e8           # m/s ;approx. velocity in a coaxial 2/3 * speed of light
-l2 = 200.0e-6       # m ;adjust length with epsilonr for saphire *3/2
-Ic = 0.8e-6         # A ;0.8uA measured, 2.5 uA max
+v = 2.0e8           # m/s; approx. velocity in a coaxial 2/3 * speed of light
+l2 = 200.0e-6       # m; adjust length with epsilonr for saphire *3/2
+Ic = 0.8e-6         # A; 0.8uA measured, 2.5 uA max
 R = 5.0e3           # Ohm
 Cap = 20.0e-15      # F
-Y4 = 1/0.001           # R ;Wire bonds to GND
+Y4 = 1/0.001           # R; Wire bonds to GND
 xaxis = np.linspace(-1,1,1001)*flux0
 
 #sweep freq
@@ -52,11 +50,11 @@ for flux in xaxis:
     s1 = b*l1
     s2 = b*l2
     #M1 = np.matrix([[cos(s1),i*Z1*sin(s1)],[i*1.0/Z1*sin(s1),cos(s1)]]) # Coaxial Cable with length l1
-    #M2 = np.matrix([[cos(s2),i*Z2*sin(s2)],[i*1.0/Z2*sin(s2),cos(s2)]]) # Coplanar Stripline with leght l2
+    M2 = np.matrix([[cos(s2),i*Z2*sin(s2)],[i*1.0/Z2*sin(s2),cos(s2)]]) # Coplanar Stripline with leght l2 (including phase modulation of the SQUID)
     #M3 = np.matrix([[0,Zsq],[0,1]]) # Perfectly terminated SQUID
     M3 = np.matrix([[1,Zsq],[0,1]]) # Imperfect terminated SQUID
     M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
-    M = M3*M4
+    M = M2*M3*M4 # connect the elements
     A = M[0,0]
     B = M[0,1]
     C = M[1,0]
