@@ -21,7 +21,7 @@ import matplotlib.pyplot as pl
 i = 1.0j
 flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 Z0 = 50.0           # R; Input impedance
-Z1 = 55.0            # R; Impedance of cable
+Z1 = 20.0           # R; Impedance of cable
 Z2 = 50.0           # R; Impedance of Coplanar Waveguide
 l1 = 0.1            # m;
 l2 = 200.0e-6       # m; adjust length with epsilonr for saphire *3/2
@@ -40,18 +40,23 @@ magnet = dim(name = 'Flux (Phi0)',
 freq = dim(name = 'Frequency (GHz)',
            start = 4,
            stop = 8,
-           pt = 2001,
+           pt = 1001,
            scale = 1e9)
 dim_3 = dim(name = 'Amplitude // Phase',
            start = 0,
            stop = 1,
            pt = 4)
-head1 = make_header(magnet, freq, dim_3, 'S11')
-Mat3d  = np.zeros((dim_3.pt,freq.pt,magnet.pt))
+#head1 = make_header(freq, magnet, dim_3, 'S11')
+#Mat3d  = np.zeros((dim_3.pt,magnet.pt,freq.pt))
+
+head1 = make_header(magnet, freq, dim_3, 'S11/S12')
+Mat3d  = np.zeros((dim_3.pt, freq.pt, magnet.pt))
 
 jj = 0
 for f0 in freq.lin:
+#for flux in magnet.lin:
     ii = 0
+    #for f0 in freq.lin:
     for flux in magnet.lin:
         b = 2.0*pi*f0/v      # b = k = 2pi/wavelength; wavelength = velocity / frequency
         L = flux0 / (Ic*2.0*pi* np.abs(cos(pi*flux/flux0)))
@@ -75,10 +80,13 @@ for f0 in freq.lin:
 
         Mat3d[0,jj,ii]     = np.abs(S11)
         Mat3d[1,jj,ii]     = np.angle(S11)
-        Mat3d[2,jj,ii]     = np.abs(S11)
-        Mat3d[3,jj,ii]     = np.angle(S11)
+        Mat3d[2,jj,ii]     = np.abs(S12)
+        Mat3d[3,jj,ii]     = np.angle(S12)
 
         ii = ii +1
+
+    Mat3d[1,jj]     = np.unwrap(Mat3d[1,jj])
+    Mat3d[3,jj]     = np.unwrap(Mat3d[3,jj])
     jj = jj +1
 
 pl.figure(1)
