@@ -1,4 +1,5 @@
-"""
+# -*- coding: utf-8 -*-
+'''
 Created on Mon Jul  6 17:43:03 2015
 
 @author: benschneider
@@ -7,7 +8,8 @@ System:
 SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2 … ; each represent one element.
 For Reference on ABCD Matrix: Microwave Engineering by David M. Pozar p. 185
-"""
+'''
+
 import numpy as np
 from numpy import pi, cos, sin, log
 import matplotlib
