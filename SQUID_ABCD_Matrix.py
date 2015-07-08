@@ -30,7 +30,6 @@ R = 2.3e3           # Ohm
 Cap = 450e-15        #450.0e-15     # F
 Y4 = 1/0.1          # 1/Ohm; Wire bonds to GND
 
-
 magnet = dim(name = 'Flux (Phi0)',
            start = -1,
            stop = 1,
@@ -45,17 +44,12 @@ dim_3 = dim(name = '0 1 S11, 2 3 S21, 4 5 Z, 6 L',
            start = 0,
            stop = 1,
            pt = 7)
-#head1 = make_header(freq, magnet, dim_3, 'S11')
-#Mat3d  = np.zeros((dim_3.pt,magnet.pt,freq.pt))
-
 head1 = make_header(magnet, freq, dim_3, 'S11/S12')
 Mat3d  = np.zeros((dim_3.pt, freq.pt, magnet.pt))
 
 jj = 0
 for f0 in freq.lin:
-#for flux in magnet.lin:
     ii = 0
-    #for f0 in freq.lin:
     for flux in magnet.lin:
         b = 2.0*pi*f0/v      # b = k = 2pi/wavelength; wavelength = velocity / frequency
         L = flux0 / (Ic*2.0*pi* np.abs(cos(pi*flux/flux0)))
@@ -81,10 +75,10 @@ for f0 in freq.lin:
         Mat3d[1,jj,ii]     = np.angle(S11)
         Mat3d[2,jj,ii]     = np.abs(S12)
         Mat3d[3,jj,ii]     = np.angle(S12)
-        #record what happens to Zsq
+        #record what happens to L and Zsq
         Mat3d[4,jj,ii] = np.abs(Zsq)
+        Mat3d[5,jj,ii] = np.angle(Zsq)
         Mat3d[6,jj,ii] = np.abs(L)
-        Mat3d[5,jj,ii]     = np.angle(Zsq)
 
         ii = ii +1
     Mat3d[1,jj]     = np.unwrap(Mat3d[1,jj])
