@@ -150,52 +150,31 @@ def loadmtx(filename):
 #    else:
 #        return test1
 
-def savemtx(filename, *data, **quarks):
+
+def savemtx(filename, data, header = 'Units,ufo,d1,0,1,d2,0,1,d3,0,1'):
     '''MTX - file parser by Ben Schneider
-       savemtx(filename, *data, **quarks):
-       quarks can be:
+    stores to the file:
+    Units, Dataset name, xname, xmin, xmax, yname, ymin, ymax, zname, zmin, zmax
+    nx ny nz length
+    [binary data....]
 
-        header = ['Units', 'Valuename',
-                'X-label', 'x-start', 'x-stop',
-                'Y-label', 'y-stop', 'x-start',
-                'Z-label', 'z-start', 'z-stop']
-
-        where x,y,z-start and stop are replaced by a number in stringformat.
-        i.e.:
-
-        header = ['Units', 'Voltage',
-                'X-label', '0', '1',
-                'Y-label', '1', '0',
-                'Z-label', '0', '1']
-
-    then execute with:
-
-    myheader = ['Units', 'Voltage',
-                'X-label', '0', '1',
-                'Y-label', '1', '0',
-                'Z-label', '0', '1']
-    savemtx('myfile.mtx',my-3d-array, header = myheader)
+    the first line is the header i.e. with
+    myheader = 'Units, S11, Magnet (T), -1, 1, Volt (V), -10, 10, Freqeuency (Hz), 1, 10'
+    savemtx('myfile.mtx',my-3d-np-array, header = myheader)
     '''
     with open(filename, 'wb') as f:
-        if 'header' in quarks:
-            header = ",".join(quarks['header']) #write the header in the first line
-            f.write(header +'\n')
-        else:
-            f.write(header +'\n')
+        f.write(header +'\n')
 
-        s = len(data[0][0][0]), len(data[0][0]), len(data[0]), 8 #(x ,y ,z , 8)
-        line = " ".join(str(b) for b in s) #'x y z 8'
+        mtxshape = data.shape
+        line = str(mtxshape[2])+' '+str(mtxshape[1])+' '+str(mtxshape[0])+' '+'8'
         f.write(line +'\n')  #'x y z 8 \n'
 
-        M = data[0]
-        if  len(s) == 4:
-            raw2 = np.reshape(M, s[2]*s[1]*s[0], order="F")
-            raw = pack('%sd' % len(raw2), *raw2)
-            f.write(raw)
-
+        raw2 = np.reshape(data, mtxshape[0]*mtxshape[1]*mtxshape[2], order="F")
+        raw = pack('%sd' % len(raw2), *raw2)
+        f.write(raw)
         f.close()
 
-def make_header(dim_1, dim_2, dim_3, meas_data='Meas_data (unknown units)'):
+def make_header(dim_1, dim_2, dim_3, meas_data='ufo'):
     '''
     def your sweep axis/name, start and stop
     values = Measured Voltage (V)
@@ -205,13 +184,13 @@ def make_header(dim_1, dim_2, dim_3, meas_data='Meas_data (unknown units)'):
     dim_2.name = Voltage (V)
     ...
     dim_3.name = RF Power (dB)
+    returns a text string used as 1st line of an mtx file
     '''
-    head_1 = ['Units', meas_data,
-        dim_1.name, str(dim_1.start), str(dim_1.stop),
-        dim_2.name, str(dim_2.start), str(dim_2.stop),
-        dim_3.name, str(dim_3.start), str(dim_3.stop),]
-    return head_1
-
+    header = ('Units,'+ meas_data +','+
+                dim_1.name+','+ str(dim_1.start)+','+ str(dim_1.stop)+','+
+                dim_2.name+','+ str(dim_2.start)+','+ str(dim_2.stop)+','+
+                dim_3.name+','+ str(dim_3.start)+','+ str(dim_3.stop))
+    return header
 
 class dim():
     def __init__(self, name = 'void' ,start = 0, stop = 0, pt = 1, scale = 1):

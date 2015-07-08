@@ -27,8 +27,8 @@ l2 = 900.0e-6       # m; adjust length with epsilonr for saphire
 v = 2.0e8           # m/s; approx. velocity in a coaxial 2/3 * speed of light
 Ic = 1.7e-6         # A; Ic ~ 0.85uA measured, 2.5 uA max
 R = 2.3e3           # Ohm
-Cap = 450e-15        #450.0e-15     # F
-Y4 = 1/0.1          # 1/Ohm; Wire bonds to GND
+Cap = 450e-15       #450.0e-15     # F
+Y4 = 1/0.1          # 1/Ohm; Wire bonds conductance to GND (-45dB isolation)
 
 magnet = dim(name = 'Flux (Phi0)',
            start = -1,
@@ -40,11 +40,11 @@ freq = dim(name = 'Frequency (GHz)',
            stop = 8,
            pt = 101,
            scale = 1e9)
-dim_3 = dim(name = '0 1 S11, 2 3 S21, 4 5 Z, 6 L',
+dim_3 = dim(name = 'mag/phase',
            start = 0,
            stop = 1,
            pt = 7)
-head1 = make_header(magnet, freq, dim_3, 'S11/S12')
+head1 = make_header(magnet, freq, dim_3, 'S11 S21 Z L')
 Mat3d  = np.zeros((dim_3.pt, freq.pt, magnet.pt))
 
 jj = 0
@@ -58,11 +58,11 @@ for f0 in freq.lin:
         s1 = b*l1
         s2 = b*l2
         #M1 = np.matrix([[cos(s1),i*Z1*sin(s1)],[i*1.0/Z1*sin(s1),cos(s1)]]) # Coaxial Cable with length l1
-        M3 = np.matrix([[0,1/Ysq],[0,1]]) # Perfectly terminated SQUID
         #M2 = np.matrix([[cos(s2),i*Z2*sin(s2)],[i*1.0/Z2*sin(s2),cos(s2)]]) # Coplanar Stripline with leght l2
-        #M3 = np.matrix([[1,Zsq],[0,1]]) # Non Perfect termination of the SQUID
-        #M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
-        M = M3 # connect the elements, simply by multiplying matrices.
+        M3 = np.matrix([[1,Zsq],[0,1]]) # Non Perfect termination of the SQUID
+        M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
+        #M3 = np.matrix([[0,1/Ysq],[0,1]]) # Perfectly terminated SQUID
+        M = M3*M4 # connect the elements, simply by multiplying matrices.
         A = M[0,0]
         B = M[0,1]
         C = M[1,0]
@@ -94,5 +94,5 @@ pl.figure(2)
 pl.imshow(Mat3d[1])
 pl.show()
 
-#savemtx('resultdata.mtx', Mat3d, header = head1) #mtx file can be opened by spyview
+savemtx('resultdata2.mtx', Mat3d, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
