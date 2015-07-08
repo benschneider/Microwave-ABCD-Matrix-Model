@@ -20,31 +20,31 @@ import matplotlib.pyplot as pl
 i = 1.0j
 flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 Z0 = 50.0           # R; Input impedance
-Z1 = 20.0           # R; Impedance of cable
+Z1 = 30.0           # R; Impedance of 'cable'
 Z2 = 50.0           # R; Impedance of Coplanar Waveguide
 l1 = 0.44           # m;
-l2 = 900.0e-6*2     # m; adjust length with epsilonr for saphire
+l2 = 900.0e-6       # m; adjust length with epsilonr for saphire
 v = 2.0e8           # m/s; approx. velocity in a coaxial 2/3 * speed of light
-Ic = 0.8e-6         # A; 0.8uA measured, 2.5 uA max
-R = 5.0e3           # Ohm
-Cap = 100.0e-15      # F
-Y4 = 1/0.001        # R; Wire bonds to GND
+Ic = 1.7e-6         # A; Ic ~ 0.85uA measured, 2.5 uA max
+R = 2.3e3           # Ohm
+Cap = 450e-15        #450.0e-15     # F
+Y4 = 1/0.1          # 1/Ohm; Wire bonds to GND
 
 
 magnet = dim(name = 'Flux (Phi0)',
            start = -1,
            stop = 1,
-           pt = 101,
+           pt = 1001,
            scale = flux0)
 freq = dim(name = 'Frequency (GHz)',
-           start = 1,
-           stop = 12,
-           pt = 1001,
+           start = 4,
+           stop = 8,
+           pt = 101,
            scale = 1e9)
-dim_3 = dim(name = 'Amplitude // Phase',
+dim_3 = dim(name = '0 1 S11, 2 3 S21, 4 5 Z, 6 L',
            start = 0,
            stop = 1,
-           pt = 4)
+           pt = 7)
 #head1 = make_header(freq, magnet, dim_3, 'S11')
 #Mat3d  = np.zeros((dim_3.pt,magnet.pt,freq.pt))
 
@@ -59,17 +59,16 @@ for f0 in freq.lin:
     for flux in magnet.lin:
         b = 2.0*pi*f0/v      # b = k = 2pi/wavelength; wavelength = velocity / frequency
         L = flux0 / (Ic*2.0*pi* np.abs(cos(pi*flux/flux0)))
-        Ysq = (1.0/R + 1/(i*2*pi*f0*L +i*1e-90) + i*2*pi*Cap)
+        Ysq = (1.0/R + 1.0/(i*2.0*pi*f0*L +i*1e-90) + i*2.0*pi*f0*Cap)
         Zsq = 1.0/Ysq
-        #l2 = l2 + L     #Squid modulates the phase (sin(l) = l for small l) !Wrong!
         s1 = b*l1
         s2 = b*l2
-        M1 = np.matrix([[cos(s1),i*Z1*sin(s1)],[i*1.0/Z1*sin(s1),cos(s1)]]) # Coaxial Cable with length l1
-        #M3 = np.matrix([[0,1/Ysq],[0,1]]) # Perfectly terminated SQUID
-        M2 = np.matrix([[cos(s2),i*Z2*sin(s2)],[i*1.0/Z2*sin(s2),cos(s2)]]) # Coplanar Stripline with leght l2 (including phase modulation of the SQUID)
-        M3 = np.matrix([[1,Zsq],[0,1]]) # Non Perfect termination of the SQUID
-        M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
-        M = M1*M2*M3*M4 # connect the elements
+        #M1 = np.matrix([[cos(s1),i*Z1*sin(s1)],[i*1.0/Z1*sin(s1),cos(s1)]]) # Coaxial Cable with length l1
+        M3 = np.matrix([[0,1/Ysq],[0,1]]) # Perfectly terminated SQUID
+        #M2 = np.matrix([[cos(s2),i*Z2*sin(s2)],[i*1.0/Z2*sin(s2),cos(s2)]]) # Coplanar Stripline with leght l2
+        #M3 = np.matrix([[1,Zsq],[0,1]]) # Non Perfect termination of the SQUID
+        #M4 = np.matrix([[1,0],[Y4,1]]) # Wirebonds to GND
+        M = M3 # connect the elements, simply by multiplying matrices.
         A = M[0,0]
         B = M[0,1]
         C = M[1,0]
@@ -77,15 +76,27 @@ for f0 in freq.lin:
         S11 = (A+B/Z0-C*Z0-D)/(A+B/Z0+C*Z0+D)
         S12 = 2*(A*D-B*C)/(A+B/Z0+C*Z0+D)
 
+        #record stuff into matrix
         Mat3d[0,jj,ii]     = np.abs(S11)
         Mat3d[1,jj,ii]     = np.angle(S11)
         Mat3d[2,jj,ii]     = np.abs(S12)
         Mat3d[3,jj,ii]     = np.angle(S12)
+        #record what happens to Zsq
+        if np.abs(Zsq) < 500:
+            Mat3d[4,jj,ii] = np.abs(Zsq) #crop off anything larger than 200
+        else:
+            Mat3d[4,jj,ii] = 500
+        if np.abs(L) < 500:
+            Mat3d[6,jj,ii] = np.abs(L)
+        else:
+            Mat3d[6,jj,ii] = 500
+            print 'Flux ', flux, np.abs(L),'iwl', (i*2.0*pi*f0*L +i*1e-90),'1/iwc', (1.0/(i*2.0*pi*f0*Cap))
+        Mat3d[5,jj,ii]     = np.angle(Zsq)
 
         ii = ii +1
-
     Mat3d[1,jj]     = np.unwrap(Mat3d[1,jj])
     Mat3d[3,jj]     = np.unwrap(Mat3d[3,jj])
+    Mat3d[5,jj]     = np.unwrap(Mat3d[5,jj])
     jj = jj +1
 
 pl.figure(1)
@@ -96,5 +107,5 @@ pl.figure(2)
 pl.imshow(Mat3d[1])
 pl.show()
 
-savemtx('resultdata.mtx', Mat3d, header = head1) #mtx file can be opened by spyview
+#savemtx('resultdata.mtx', Mat3d, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
