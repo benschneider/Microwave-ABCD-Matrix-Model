@@ -82,15 +82,8 @@ for f0 in freq.lin:
         Mat3d[2,jj,ii]     = np.abs(S12)
         Mat3d[3,jj,ii]     = np.angle(S12)
         #record what happens to Zsq
-        if np.abs(Zsq) < 500:
-            Mat3d[4,jj,ii] = np.abs(Zsq) #crop off anything larger than 200
-        else:
-            Mat3d[4,jj,ii] = 500
-        if np.abs(L) < 500:
-            Mat3d[6,jj,ii] = np.abs(L)
-        else:
-            Mat3d[6,jj,ii] = 500
-            print 'Flux ', flux, np.abs(L),'iwl', (i*2.0*pi*f0*L +i*1e-90),'1/iwc', (1.0/(i*2.0*pi*f0*Cap))
+        Mat3d[4,jj,ii] = np.abs(Zsq)
+        Mat3d[6,jj,ii] = np.abs(L)
         Mat3d[5,jj,ii]     = np.angle(Zsq)
 
         ii = ii +1
