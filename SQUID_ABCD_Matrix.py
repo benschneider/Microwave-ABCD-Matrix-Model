@@ -9,7 +9,6 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2 … ; each represent one element.
 For Reference on ABCD Matrix: Microwave Engineering by David M. Pozar p. 185
 '''
-
 import numpy as np
 from numpy import pi, cos, sin, log
 from parsers import savemtx, make_header, dim
@@ -97,4 +96,5 @@ pl.figure(2)
 pl.imshow(Mat3d[1])
 pl.show()
 
-savemtx('test.mtx', Mat3d, header = head1) #mtx file can be opened by spyview
+savemtx('resultdata.mtx', Mat3d, header = head1) #mtx file can be opened by spyview
+#Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
