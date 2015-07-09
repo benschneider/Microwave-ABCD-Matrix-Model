@@ -174,7 +174,7 @@ def savemtx(filename, data, header = 'Units,ufo,d1,0,1,d2,0,1,d3,0,1'):
         f.write(raw)
         f.close()
 
-def make_header(dim_1, dim_2, dim_3, meas_data='ufo'):
+def make_header(dim_1, dim_2, dim_3, meas_data='(a.u)'):
     '''
     def your sweep axis/name, start and stop
     values = Measured Voltage (V)
@@ -193,8 +193,8 @@ def make_header(dim_1, dim_2, dim_3, meas_data='ufo'):
     return header
 
 class dim():
-    def __init__(self, name = 'void' ,start = 0, stop = 0, pt = 1, scale = 1):
-        self.name = name
+    def __init__(self, name = 'ufo' ,start = 0, stop = 0, pt = 1, scale = 1):
+        self.name = name     #ufo: unknown fried object
         self.start = start
         self.stop = stop
         self.pt = pt
