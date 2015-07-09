@@ -62,13 +62,11 @@ for f0 in freq.lin:
         Ysq = (1.0/R + 1.0/(i*2.0*pi*f0*L +i*1e-90) + i*2.0*pi*f0*Cap)
         Zsq = 1.0/Ysq
 
-        ABCD = tline(40,b,0.01)*tline(50,b,0.3)*tline(25,b,900e-6)*sres(Zsq)*shunt(0.1)
+        ABCD = tline(30,b,0.01)*tline(50,b,0.3)*tline(10,b,900e-6)*sres(Zsq)*shunt(0.1)
 
-        #record stuff into matrix
-        dim_3.record_SM(ABCD,jj,ii) #dim_3._SMat is the result matrix
-        dim_3._SMat[8,jj,ii] = np.abs(Zsq) #record what happens
-        dim_3._SMat[9,jj,ii] = np.angle(Zsq)
-        dim_3._SMat[10,jj,ii] = np.abs(L)
+        #record stuff into dim_3._SMat
+        dim_3.record_SM(ABCD,jj,ii)
+        dim_3.record_ZL(Zsq,L, jj,ii)
 
         ii = ii +1
     dim_3.unwrap_SM(jj)

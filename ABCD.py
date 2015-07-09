@@ -120,6 +120,14 @@ class handler():
         self._SMat[6,jj,ii]     = np.abs(S[1,1])
         self._SMat[7,jj,ii]     = np.angle(S[1,1])
 
+    def record_ZL(self,Z,L, jj,ii):
+        '''
+        Stores the results of the S Matrix into '_SMat'
+        '''
+        self._SMat[8,jj,ii] = np.abs(Z)
+        self._SMat[9,jj,ii] = np.angle(Z)
+        self._SMat[10,jj,ii] = np.abs(L)
+
     def unwrap_SM(self,jj):
         #a better unwrap function is still in thinking...
         self._SMat[1,jj]     = np.unwrap(self._SMat[1,jj])
