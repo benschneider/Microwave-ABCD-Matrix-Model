@@ -16,10 +16,13 @@ c_light = 3e8 m/s
 wavelength = c_light/frequency
 
 2 Port circuits:
+Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
 
 def __init__(self):
     pass
+
+#__all__ = ["sres", "terminator", "tline", "shunt", "coupling", "handler"]
 
 def sres(Z):
     '''

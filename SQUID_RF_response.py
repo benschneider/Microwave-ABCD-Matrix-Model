@@ -7,7 +7,7 @@ Created on Mon Jul  6 17:43:03 2015
 System:
 SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2 … ; each represent one element.
-For Reference on ABCD Matrix: Microwave Engineering by David M. Pozar p. 185
+Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
 import numpy as np
 from numpy import pi, cos, sin, log
@@ -62,7 +62,7 @@ for f0 in freq.lin:
         Ysq = (1.0/R + 1.0/(i*2.0*pi*f0*L +i*1e-90) + i*2.0*pi*f0*Cap)
         Zsq = 1.0/Ysq
 
-        ABCD = tline(30,b,0.01)*tline(50,b,0.3)*tline(10,b,900e-6)*sres(Zsq)*shunt(0.1)
+        ABCD = tline(70,b,0.01)*tline(50,b,0.3)*tline(10,b,900e-6)*sres(Zsq)*shunt(0.1)
 
         #record stuff into dim_3._SMat
         dim_3.record_SM(ABCD,jj,ii)
