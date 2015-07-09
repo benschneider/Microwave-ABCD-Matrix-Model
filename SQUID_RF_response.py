@@ -62,10 +62,10 @@ for f0 in freq.lin:
         Ysq = (1.0/R + 1.0/(i*2.0*pi*f0*L +i*1e-90) + i*2.0*pi*f0*Cap)
         Zsq = 1.0/Ysq
 
-        ABCD = tline(70,b,0.01)*tline(50,b,0.3)*tline(10,b,900e-6)*sres(Zsq)*shunt(0.1)
+        ABCD_Matrix = tline(70,b,0.01)*tline(50,b,0.3)*tline(10,b,900e-6)*sres(Zsq)*shunt(0.1)
 
         #record stuff into dim_3._SMat
-        dim_3.record_SM(ABCD,jj,ii)
+        dim_3.record_SM(ABCD_Matrix,jj,ii)
         dim_3.record_ZL(Zsq,L, jj,ii)
 
         ii = ii +1
