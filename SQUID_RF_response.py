@@ -52,10 +52,8 @@ head1 = make_header(magnet, freq, dim_3, 'S11 S12 S21 S22 Z L')
 dim_3.prepare_data_save(magnet, freq, dim_3)
 
 
-jj = 0
-for f0 in freq.lin:
-    ii = 0
-    for flux in magnet.lin:
+for jj, f0 in enumerate(freq.lin):
+    for ii, flux in enumerate(magnet.lin):
         # b = k = 2pi/wavelength; wavelength = velocity / frequency
         b = 2.0*pi*f0/v
         L = flux0 / (Ic*2.0*pi* np.abs(cos(pi*flux/flux0)))
@@ -68,10 +66,8 @@ for f0 in freq.lin:
         dim_3.record_SM(ABCD_Matrix,jj,ii)
         dim_3.record_ZL(Zsq,L, jj,ii)
 
-        ii = ii +1
     dim_3.unwrap_SM(jj)
     dim_3._SMat[9,jj] = np.unwrap(dim_3._SMat[9,jj])
-    jj = jj +1
 
 pl.figure(1)
 pl.imshow(dim_3._SMat[0])
