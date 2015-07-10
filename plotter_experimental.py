@@ -76,5 +76,33 @@ plt.subplot(2, 1, 2)
 plt.imshow(dim_3._SMat[1], aspect = 'auto',cmap=plt.get_cmap('seismic'))
 plt.show()
 
+
+def plotfig2(f):
+    plt.figure(2)
+    plt.subplot(2, 1, 1)
+    plt.plot(dim_3._SMat[0][f])
+    plt.hold(False)
+    plt.subplot(2, 1, 2)
+    plt.plot(dim_3._SMat[1][f])
+    plt.hold(False)
+    plt.show()
+
+
+plt.figure(3)
+axcolor = 'lightgoldenrodyellow'
+axfreq = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
+axamp  = plt.axes([0.25, 0.15, 0.65, 0.03], axisbg=axcolor)
+sfreq = plt.Slider(axfreq, 'Freq', 0, 100.0, valinit=1)
+samp = plt.Slider(axamp, 'Amp', 0.1, 10.0, valinit=1)
+
+def update(val):
+    #amp = samp.val
+    freq = int(sfreq.val)
+    plotfig2(freq)
+    #plt.hold(False)
+sfreq.on_changed(update)
+samp.on_changed(update)
+
+
 #savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
