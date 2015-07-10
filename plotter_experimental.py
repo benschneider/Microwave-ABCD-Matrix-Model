@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-Created on Mon Jul  6 17:43:03 2015
+Created on Fri Jul 10 15:02:34 2015
 
 @author: benschneider
 
@@ -9,6 +9,7 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2 … ; each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
+
 from numpy import pi, cos, abs, unwrap #, sin, log
 from parsers import savemtx, make_header, dim
 from ABCD import handler, tline, sres, shunt
