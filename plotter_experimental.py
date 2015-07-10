@@ -70,12 +70,11 @@ for jj, f0 in enumerate(freq.lin):
     dim_3._SMat[9,jj] = unwrap(dim_3._SMat[9,jj])
 
 plt.figure(1)
-plt.imshow(dim_3._SMat[0])
+plt.subplot(2, 1, 1)
+plt.imshow(dim_3._SMat[0], aspect = 'auto',cmap=plt.get_cmap('seismic'))
+plt.subplot(2, 1, 2)
+plt.imshow(dim_3._SMat[1], aspect = 'auto',cmap=plt.get_cmap('seismic'))
 plt.show()
 
-plt.figure(2)
-plt.imshow(dim_3._SMat[1])
-plt.show()
-
-savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
+#savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
