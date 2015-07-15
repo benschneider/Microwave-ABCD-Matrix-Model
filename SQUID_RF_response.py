@@ -13,7 +13,6 @@ from numpy import pi, cos, abs, unwrap #, sin, log
 from parsers import savemtx, make_header, dim
 from ABCD import handler, tline, sres, shunt
 
-
 import matplotlib
 matplotlib.use('macosx') # macosx, Qt4Agg, WX
 import matplotlib.pyplot as plt
