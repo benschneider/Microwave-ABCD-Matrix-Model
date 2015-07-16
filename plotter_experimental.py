@@ -30,9 +30,9 @@ elem = handler(name = 'mag/phase',
                start = 0,
                stop = 10,
                pt = 1) #8 pts for S 4x2 values
-squid.Ic = 1.7e-6       # A; Ic ~ 0.85uA measured, 2.5 uA max
-squid.R = 2.3e3          # Ohm
-squid.Cap = 450e-15     # 450.0e-15     # F
+#squid.Ic = 1.7e-6       # A; Ic ~ 0.85uA measured, 2.5 uA max
+#squid.R = 2.3e3          # Ohm
+#squid.Cap = 450e-15     # 450.0e-15     # F
 squid.flux0 = 2.07e-15  # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 
 elem.Z0 = 50            # R; Input impedance
@@ -75,7 +75,6 @@ def plotfig2(SMat):
     S11 = SMat[:,0,0]
     S12 = SMat[:,1,0]
     xaxis = squid.lin/flux0
-    #print S11
     fig2 = plt.figure(2)
     g1 = fig2.add_subplot(2, 2, 1)
     g1.plot(xaxis, abs(S11))
@@ -97,30 +96,32 @@ axcolor = 'lightgoldenrodyellow'
 axfreq = plt.axes([0.25, 0.1, 0.50, 0.03], axisbg=axcolor)
 axIc  = plt.axes([0.25, 0.15, 0.50, 0.03], axisbg=axcolor)
 axCap  = plt.axes([0.25, 0.20, 0.50, 0.03], axisbg=axcolor)
-axZ1  = plt.axes([0.25, 0.25, 0.50, 0.03], axisbg=axcolor)
-axL1  = plt.axes([0.25, 0.30, 0.50, 0.03], axisbg=axcolor)
-axZ2  = plt.axes([0.25, 0.35, 0.50, 0.03], axisbg=axcolor)
-axL2  = plt.axes([0.25, 0.40, 0.50, 0.03], axisbg=axcolor)
-axZ3  = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
-axL3  = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
-axZ4  = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
-sFreq = plt.Slider(axfreq, 'Freq (GHz)', 1, 14.0, valinit=3)
+axRsq  = plt.axes([0.25, 0.25, 0.50, 0.03], axisbg=axcolor)
+axZ1  = plt.axes([0.25, 0.30, 0.50, 0.03], axisbg=axcolor)
+axL1  = plt.axes([0.25, 0.35, 0.50, 0.03], axisbg=axcolor)
+axZ2  = plt.axes([0.25, 0.40, 0.50, 0.03], axisbg=axcolor)
+axL2  = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
+axZ3  = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
+axL3  = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
+axZ4  = plt.axes([0.25, 0.60, 0.50, 0.03], axisbg=axcolor)
+sFreq = plt.Slider(axfreq, 'Freq (GHz)', 1, 14.0, valinit=4)
 sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.2)
 sCap = plt.Slider(axCap, 'Cap (fF)', 0, 500.0, valinit=1)
-sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 500.0, valinit=50)
+sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=5)
+sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 200.0, valinit=50)
+sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 200.0, valinit=50)
+sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 200.0, valinit=50)
 sL1 = plt.Slider(axL1, 'L1 (m)', 0.0, 0.1, valinit=0.01)
-sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 500.0, valinit=50)
 sL2 = plt.Slider(axL2, 'L2 (m)', 0.0, 1.0, valinit=0.3)
-sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 500.0, valinit=50)
 sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 2.0, valinit=0.9)
 sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
 fig3.show()
 
 def update(val):
-    print val
     f0 = sFreq.val*1e9
     squid.Ic = sIc.val*1e-6
     squid.Cap = sCap.val*1e-15
+    squid.R = sRsq.val*1e3
     elem.Z1 = sZ1.val
     elem.L1 = sL1.val
     elem.Z2 = sZ2.val
@@ -133,9 +134,11 @@ def update(val):
 sFreq.on_changed(update)
 sIc.on_changed(update)
 sCap.on_changed(update)
+sRsq.on_changed(update)
 sZ1.on_changed(update)
 sZ2.on_changed(update)
 sZ2.on_changed(update)
+sZ3.on_changed(update)
 sL1.on_changed(update)
 sL2.on_changed(update)
 sL3.on_changed(update)
@@ -147,6 +150,7 @@ def reset(event):
     sFreq.reset()
     sIc.reset()
     sCap.reset()
+    sRsq.reset()
     sZ1.reset()
     sZ2.reset()
     sZ2.reset()
