@@ -16,7 +16,7 @@ from ABCD import tline, sres, shunt, handler, terminator
 
 
 import matplotlib
-matplotlib.use('macosx') # macosx, Qt4Agg, WX
+matplotlib.use('Qt4Agg') # macosx, Qt4Agg, WX
 import matplotlib.pyplot as plt
 
 flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
