@@ -73,15 +73,23 @@ def get_SMresponse(f0,squid,elem):
 
 def plotfig2(SMat):
     S11 = SMat[:,0,0]
+    S12 = SMat[:,1,0]
+    xaxis = squid.lin/flux0
     #print S11
     fig2 = plt.figure(2)
-    g1 = fig2.add_subplot(2, 1, 1)
-    g1.plot(abs(S11))
+    g1 = fig2.add_subplot(2, 2, 1)
+    g1.plot(xaxis, abs(S11))
     #g1.set_ylim([0.9,1.0])
     g1.hold(False)
-    g2 = fig2.add_subplot(2, 1, 2,sharex=g1)
-    g2.plot(unwrap(angle(S11))*180/pi)
+    g2 = fig2.add_subplot(2, 2, 3, sharex=g1)
+    g2.plot(xaxis, unwrap(angle(S11))*180/pi)
     g2.hold(False)
+    g3 = fig2.add_subplot(2, 2, 2, sharex=g1)
+    g3.plot(xaxis, abs(S12))
+    g3.hold(False)
+    g4 = fig2.add_subplot(2, 2, 4, sharex=g1)
+    g4.plot(xaxis, unwrap(angle(S12))*180/pi)
+    g4.hold(False)
     fig2.show()
 
 fig3 = plt.figure(3)
@@ -109,6 +117,7 @@ sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
 fig3.show()
 
 def update(val):
+    print val
     f0 = sFreq.val*1e9
     squid.Ic = sIc.val*1e-6
     squid.Cap = sCap.val*1e-15
@@ -121,7 +130,6 @@ def update(val):
     elem.Z4 = sZ4.val
     SMat = get_SMresponse(f0,squid,elem)
     plotfig2(SMat)
-
 sFreq.on_changed(update)
 sIc.on_changed(update)
 sCap.on_changed(update)
@@ -133,6 +141,23 @@ sL2.on_changed(update)
 sL3.on_changed(update)
 sZ4.on_changed(update)
 
+resetax = plt.axes([0.8, 0.025, 0.1, 0.04])
+button = plt.Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
+def reset(event):
+    sFreq.reset()
+    sIc.reset()
+    sCap.reset()
+    sZ1.reset()
+    sZ2.reset()
+    sZ2.reset()
+    sL1.reset()
+    sL2.reset()
+    sL3.reset()
+    sZ4.reset()
+    update(0)
+button.on_clicked(reset)
+
+update(0)
 #raw_input('Press enter to exit')
 #savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
