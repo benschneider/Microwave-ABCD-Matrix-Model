@@ -3,6 +3,8 @@
 
 *.mtx
 
+*.py.swp
+
 play.py
 
 xsection.dat

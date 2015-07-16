@@ -10,101 +10,129 @@ ABCD-Matrix: M1, M2 … ; each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
 
-from numpy import pi, cos, abs, unwrap #, sin, log
-from parsers import savemtx, make_header, dim
-from ABCD import handler, tline, sres, shunt
+from numpy import pi, cos, abs, zeros, angle, unwrap #, sin, log
+from parsers import dim #make_header, savemtx
+from ABCD import tline, sres, shunt, handler, terminator
 
 
 import matplotlib
 matplotlib.use('macosx') # macosx, Qt4Agg, WX
 import matplotlib.pyplot as plt
 
-i = 1.0j
 flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
-Z0 = 50.0           # R; Input impedance
-Z1 = 30.0           # R; Impedance of transmission piece 1
-Z2 = 50.0           # R; Impedance of Coplanar Waveguide
-l1 = 0.44           # m;
-l2 = 900.0e-6       # m; adjust length with epsilonr for saphire
-v = 2.0e8           # m/s; approx. velocity in a coaxial 2/3 * speed of light
-Ic = 1.7e-6         # A; Ic ~ 0.85uA measured, 2.5 uA max
-R = 2.3e3           # Ohm
-Cap = 450e-15       # 450.0e-15     # F
-Y4 = 1/0.1          # 1/Ohm; Wire bonds conductance to GND (-45dB isolation)
 
-magnet = dim(name = 'Flux (Phi0)',
-           start = -1,
-           stop = 1,
-           pt = 1001,
-           scale = flux0)
-freq = dim(name = 'Frequency (GHz)',
-           start = 4,
-           stop = 8,
-           pt = 101,
-           scale = 1e9)
-dim_3 = handler(name = 'mag/phase',
-           start = 0,
-           stop = 10,
-           pt = 11) #8 pts for S 4x2 values
-dim_3._Z0 = 50
+squid = dim(name = 'Squid',
+            start = -1,
+            stop = 1,
+            pt = 401,
+            scale = flux0)
+elem = handler(name = 'mag/phase',
+               start = 0,
+               stop = 10,
+               pt = 1) #8 pts for S 4x2 values
+squid.Ic = 1.7e-6       # A; Ic ~ 0.85uA measured, 2.5 uA max
+squid.R = 2.3e3          # Ohm
+squid.Cap = 450e-15     # 450.0e-15     # F
+squid.flux0 = 2.07e-15  # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 
-head1 = make_header(magnet, freq, dim_3, 'S11 S12 S21 S22 Z L')
-dim_3.prepare_data_save(magnet, freq, dim_3)
+elem.Z0 = 50            # R; Input impedance
+elem.Z1 = 50            # R; Impedance of transmission piece 1
+elem.Z2 = 50            # R; Impedance of Coplanar Waveguide
+elem.Z3 = 50
+elem.L1 = 0.44
+elem.L2 = 900.0e-6
+elem.L3 = 0.01
+elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
+elem.v = 2.0e8          # m/s; approx. velocity in a coaxial 2/3 * speed of light
 
 
-for jj, f0 in enumerate(freq.lin):
-    for ii, flux in enumerate(magnet.lin):
-        # b = k = 2pi/wavelength; wavelength = velocity / frequency
-        b = 2.0*pi*f0/v
-        L = flux0 / (Ic*2.0*pi* abs(cos(pi*flux/flux0)))
-        Ysq = (1.0/R + 1.0/(i*2.0*pi*f0*L +i*1e-90) + i*2.0*pi*f0*Cap)
-        Zsq = 1.0/Ysq
+def get_sMatrix(b,elem,Zsq):
+    SM = zeros( (len(Zsq), 2, 2) )*1j #complex matrix
+    M1 = (tline(elem.Z1,b,elem.L1)*
+            tline(elem.Z2,b,elem.L2)*
+            tline(elem.Z3,b,elem.L3)) #transmission lines
+    for ii, Zsq1 in enumerate(Zsq):
+        M2 = sres(Zsq1)*shunt(elem.Z4)
+        M4 = M1*M2
+        SM[ii] = elem.get_SM(M4) #complex S-Matrix shape [2 2 fluxlength]
+    return SM
 
-        ABCD_Matrix = tline(70,b,0.01)*tline(50,b,0.3)*tline(10,b,900e-6)*sres(Zsq)*shunt(0.1)
+def get_Zsq(f0,squid):
+    flux = squid.lin
+    L = flux0 / (squid.Ic*2.0*pi* abs(cos(pi*flux/squid.flux0)))
+    Ysq = (1.0/squid.R + 1.0/(1j*2.0*pi*f0*L + 1j*1e-90) + 1j*2.0*pi*f0*squid.Cap)
+    return (1.0/Ysq)
 
-        #record stuff into dim_3._SMat
-        dim_3.record_SM(ABCD_Matrix,jj,ii)
-        dim_3.record_ZL(Zsq,L, jj,ii)
+def get_SMresponse(f0,squid,elem):
+    b = 2.0*pi*f0/2.0e-8
+    Zsq = get_Zsq(f0, squid)
+    return get_sMatrix(b,elem,Zsq)
 
-    dim_3.unwrap_SM(jj)
-    dim_3._SMat[9,jj] = unwrap(dim_3._SMat[9,jj])
 
-plt.ion()
-#plt.draw()
+#plt.ion()
 
-fig1 = plt.figure(1)
-plt.subplot(2, 1, 1)
-plt.imshow(dim_3._SMat[0], aspect = 'auto',cmap=plt.get_cmap('seismic'))
-plt.subplot(2, 1, 2)
-plt.imshow(dim_3._SMat[1], aspect = 'auto',cmap=plt.get_cmap('seismic'))
-fig1.show()
-
-def plotfig2(f):
+def plotfig2(SMat):
+    S11 = SMat[:,0,0]
+    #print S11
     fig2 = plt.figure(2)
     g1 = fig2.add_subplot(2, 1, 1)
-    g1.plot(dim_3._SMat[0][f])
-    g1.set_ylim([0.9,1.0])
+    g1.plot(abs(S11))
+    #g1.set_ylim([0.9,1.0])
     g1.hold(False)
     g2 = fig2.add_subplot(2, 1, 2,sharex=g1)
-    g2.plot(dim_3._SMat[1][f])
+    g2.plot(unwrap(angle(S11))*180/pi)
     g2.hold(False)
     fig2.show()
 
 fig3 = plt.figure(3)
 axcolor = 'lightgoldenrodyellow'
-axfreq = plt.axes([0.25, 0.1, 0.65, 0.03], axisbg=axcolor)
-axamp  = plt.axes([0.25, 0.15, 0.65, 0.03], axisbg=axcolor)
-sfreq = plt.Slider(axfreq, 'Freq', 0, 100.0, valinit=1)
-samp = plt.Slider(axamp, 'Amp', 0.1, 10.0, valinit=1)
+axfreq = plt.axes([0.25, 0.1, 0.50, 0.03], axisbg=axcolor)
+axIc  = plt.axes([0.25, 0.15, 0.50, 0.03], axisbg=axcolor)
+axCap  = plt.axes([0.25, 0.20, 0.50, 0.03], axisbg=axcolor)
+axZ1  = plt.axes([0.25, 0.25, 0.50, 0.03], axisbg=axcolor)
+axL1  = plt.axes([0.25, 0.30, 0.50, 0.03], axisbg=axcolor)
+axZ2  = plt.axes([0.25, 0.35, 0.50, 0.03], axisbg=axcolor)
+axL2  = plt.axes([0.25, 0.40, 0.50, 0.03], axisbg=axcolor)
+axZ3  = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
+axL3  = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
+axZ4  = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
+sFreq = plt.Slider(axfreq, 'Freq (GHz)', 1, 14.0, valinit=3)
+sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.2)
+sCap = plt.Slider(axCap, 'Cap (fF)', 0, 500.0, valinit=1)
+sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 500.0, valinit=50)
+sL1 = plt.Slider(axL1, 'L1 (m)', 0.0, 0.1, valinit=0.01)
+sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 500.0, valinit=50)
+sL2 = plt.Slider(axL2, 'L2 (m)', 0.0, 1.0, valinit=0.3)
+sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 500.0, valinit=50)
+sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 2.0, valinit=0.9)
+sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
 fig3.show()
 
 def update(val):
-    #amp = samp.val
-    freq = int(sfreq.val)
-    plotfig2(freq)
-sfreq.on_changed(update)
-samp.on_changed(update)
+    f0 = sFreq.val*1e9
+    squid.Ic = sIc.val*1e-6
+    squid.Cap = sCap.val*1e-15
+    elem.Z1 = sZ1.val
+    elem.L1 = sL1.val
+    elem.Z2 = sZ2.val
+    elem.L2 = sL2.val
+    elem.Z3 = sZ3.val
+    elem.L3 = sL3.val*1e-3
+    elem.Z4 = sZ4.val
+    SMat = get_SMresponse(f0,squid,elem)
+    plotfig2(SMat)
 
-raw_input('Press enter to exit')
+sFreq.on_changed(update)
+sIc.on_changed(update)
+sCap.on_changed(update)
+sZ1.on_changed(update)
+sZ2.on_changed(update)
+sZ2.on_changed(update)
+sL1.on_changed(update)
+sL2.on_changed(update)
+sL3.on_changed(update)
+sZ4.on_changed(update)
+
+#raw_input('Press enter to exit')
 #savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
