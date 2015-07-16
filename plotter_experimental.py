@@ -69,7 +69,7 @@ def get_SMresponse(f0,squid,elem):
     return get_sMatrix(b,elem,Zsq)
 
 
-#plt.ion()
+plt.ion()
 
 def plotfig2(SMat):
     S11 = SMat[:,0,0]
@@ -158,6 +158,6 @@ def reset(event):
 button.on_clicked(reset)
 
 update(0)
-#raw_input('Press enter to exit')
+raw_input('Press enter to exit')
 #savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
 #Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
