@@ -10,7 +10,7 @@ ABCD-Matrix: M1, M2 … ; each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
 
-from numpy import pi, cos, abs, zeros, angle, unwrap #, sin, log
+from numpy import pi, cos, abs, zeros, angle, unwrap, log #, sin, log
 from parsers import dim #make_header, savemtx
 from ABCD import tline, sres, shunt, handler, terminator
 
@@ -77,7 +77,7 @@ def plotfig2(SMat):
     xaxis = squid.lin/flux0
     fig2 = plt.figure(2)
     g1 = fig2.add_subplot(2, 2, 1)
-    g1.plot(xaxis, abs(S11))
+    g1.plot(xaxis, (abs(S11)))
     #g1.set_ylim([0.9,1.0])
     g1.hold(False)
     g2 = fig2.add_subplot(2, 2, 3, sharex=g1)
@@ -162,6 +162,3 @@ def reset(event):
 button.on_clicked(reset)
 
 update(0)
-raw_input('Press enter to exit')
-#savemtx('resultdata3.mtx', dim_3._SMat, header = head1) #mtx file can be opened by spyview
-#Link to Spyview: http://nsweb.tn.tudelft.nl/~gsteele/spyview/
