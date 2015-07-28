@@ -177,7 +177,6 @@ def update(val):
     plotfig2(SMat,measdata)
     plotfig4(SMat,measdata)
 
-
 sIc.on_changed(update)
 sCap.on_changed(update)
 sRsq.on_changed(update)
