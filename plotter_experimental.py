@@ -138,7 +138,7 @@ axXSC  = plt.axes([0.25, 0.75, 0.50, 0.03], axisbg=axcolor)
 axATT  = plt.axes([0.25, 0.80, 0.50, 0.03], axisbg=axcolor)
 axPHI  = plt.axes([0.25, 0.85, 0.50, 0.03], axisbg=axcolor)
 
-sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0]/1e9, measdata.freq[-1]/1e9, valinit=5.3)
+sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0]/1e9, measdata.freq[-1]/1e9, valinit=5.41)
 sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.3)
 sCap = plt.Slider(axCap, 'Cap (fF)', 0, 500.0, valinit=40)
 sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=5)
