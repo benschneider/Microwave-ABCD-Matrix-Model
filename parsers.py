@@ -23,7 +23,27 @@ import csv
 from os import path
 import sys
 from shutil import copy
+import h5py
 
+
+
+def get_hdf5data(filename):
+    '''
+    Currently under construction!
+    requires manual addustments
+    '''
+    hdf5data = emptyClass()
+    with h5py.File(filename, 'r') as f:
+        hdf5data.magnet = np.array(f['Data']['Data'][:,0,0])
+        hdf5data.freq = np.array(f['Data']['Data'][0,1,:])
+        D1real = np.array(f['Data']['Data'][:,4,:]) #mag v.s. freq
+        D1imag = np.array(f['Data']['Data'][:,5,:]) #mag v.s freq
+        hdf5data.D1complex = 1j*D1imag
+        hdf5data.D1complex += D1real
+        #hdf5data.D1phase = np.angle(D1real + 1j*D1imag)
+        hdf5data.D1real = D1real
+        hdf5data.D1imag = D1imag
+    return hdf5data
 
 def ask_overwrite(filename):
     if path.isfile(filename):
@@ -126,6 +146,8 @@ def loadmtx(filename):
         M = np.reshape(data, (s[2], s[1], s[0]), order="F")
     return M, header
 
+
+
 #note: reshape modes
 #a
 #Out[133]:
@@ -199,3 +221,17 @@ class dim():
         self.stop = stop
         self.pt = pt
         self.lin = np.linspace(self.start,self.stop,self.pt)*scale
+        self.scale = scale
+
+    def update_lin(self,pt):
+        self.pt = int(pt)
+        self.lin = np.linspace(self.start,self.stop,self.pt)*self.scale
+
+
+
+class emptyClass():
+    '''
+    Just an empty class, that can be used for storage
+    '''
+    def __init__(self):
+        pass

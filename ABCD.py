@@ -60,6 +60,8 @@ def tline(Z,b,l):
     M = [cos(bl)        i*Z*sin(b1)]
         [i*Y*sin(b1)    cos(bl)]
     '''
+    if Z == 0:
+        Z = 1e-100
     Y = 1.0/Z
     M = np.matrix([[np.cos(b*l),1j*Z*np.sin(b*l)],[1j*Y*np.sin(b*l),np.cos(b*l)]])
     return M
@@ -74,6 +76,9 @@ def shunt(Z):
     M = [1 0]
         [Y 1]
     '''
+    if Z == 0:
+        Z = 1e-100
+
     Y = 1.0/Z
     M = np.matrix([[1.0,0.0],[Y,1.0]])
     return M
@@ -102,8 +107,12 @@ class handler():
         self.name = name     #ufo: unknown fried object
         self.start = start
         self.stop = stop
-        self.pt = pt
+        self.pt = int(pt)
         self.Z0 = 50
+        self.lin = np.linspace(self.start,self.stop,self.pt)
+
+    def update_lin(self,pt):
+        self.pt = int(pt)
         self.lin = np.linspace(self.start,self.stop,self.pt)
 
     def prepare_data_save(self, dim_1, dim_2, dim_3):

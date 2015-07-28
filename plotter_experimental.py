@@ -10,10 +10,11 @@ ABCD-Matrix: M1, M2 … ; each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
 
-from numpy import pi, cos, abs, zeros, angle, unwrap #, sin, log
-from parsers import dim #make_header, savemtx
+from numpy import pi, cos, log10, abs
+import numpy as np
+from parsers import dim, get_hdf5data
 from ABCD import tline, sres, shunt, handler, terminator
-
+#from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 
 import matplotlib
 matplotlib.use('Qt4Agg') # macosx, Qt4Agg, WX
@@ -24,7 +25,7 @@ flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 squid = dim(name = 'Squid',
             start = -1,
             stop = 1,
-            pt = 401,
+            pt = 216,
             scale = flux0)
 elem = handler(name = 'mag/phase',
                start = 0,
@@ -45,9 +46,12 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 elem.v = 2.0e8          # m/s; approx. velocity in a coaxial 2/3 * speed of light
 
+#load hdf5 data
+filename = 'S1_203.hdf5'
+measdata = get_hdf5data(filename)
 
 def get_sMatrix(b,elem,Zsq):
-    SM = zeros( (len(Zsq), 2, 2) )*1j #complex matrix
+    SM = np.zeros( (len(Zsq), 2, 2) )*1j #complex matrix
     M1 = (tline(elem.Z1,b,elem.L1)*
             tline(elem.Z2,b,elem.L2)*
             tline(elem.Z3,b,elem.L3)) #transmission lines
@@ -68,28 +72,53 @@ def get_SMresponse(f0,squid,elem):
     Zsq = get_Zsq(f0, squid)
     return get_sMatrix(b,elem,Zsq)
 
+def find_nearest(someArray,value):
+    idx = abs(someArray-value).argmin()
+    return idx
 
 plt.ion()
 
-def plotfig2(SMat):
+def plotfig2(SMat,measdata):
+    ydat = measdata.D1complex[:,measdata.findex]
     S11 = SMat[:,0,0]
-    S12 = SMat[:,1,0]
+    #S12 = SMat[:,1,0]
     xaxis = squid.lin/flux0
+    xaxis2 = np.linspace(-1+measdata.XPOS,1+measdata.XPOS,len(ydat))*measdata.XSC
     fig2 = plt.figure(2)
-    g1 = fig2.add_subplot(2, 2, 1)
-    g1.plot(xaxis, abs(S11))
+    g1 = fig2.add_subplot(2, 1, 1)
+    g1.plot(xaxis, 20*log10(abs(S11))+ measdata.ATT )
+    g1.hold(True)
+    g1.plot(xaxis2, 20*log10(abs(ydat)))
     #g1.set_ylim([0.9,1.0])
     g1.hold(False)
-    g2 = fig2.add_subplot(2, 2, 3, sharex=g1)
-    g2.plot(xaxis, unwrap(angle(S11))*180/pi)
+    g2 = fig2.add_subplot(2, 1, 2) #, sharex=g1)
+    g2.plot(xaxis, np.unwrap(np.angle(S11))*180/pi + measdata.PHI)
+    g2.hold(True)
+    g2.plot(xaxis2, np.unwrap(np.angle(ydat), discont = pi/2) *180/pi)
     g2.hold(False)
+    '''
     g3 = fig2.add_subplot(2, 2, 2, sharex=g1)
     g3.plot(xaxis, abs(S12))
     g3.hold(False)
     g4 = fig2.add_subplot(2, 2, 4, sharex=g1)
     g4.plot(xaxis, unwrap(angle(S12))*180/pi)
     g4.hold(False)
+    '''
     fig2.show()
+
+def plotfig4(SMat,measdata):
+    ydat = measdata.D1complex[:,measdata.findex]
+    xaxis2 = np.linspace(-1+measdata.XPOS,1+measdata.XPOS,len(ydat))*measdata.XSC
+    fig4 = plt.figure(4)
+    g1 = fig4.add_subplot(2, 1, 1)
+    g1.plot(xaxis2, 20*log10(abs(ydat)))
+    g1.hold(False)
+    g2 = fig4.add_subplot(2, 1, 2) #, sharex=g1)
+    g2.plot(xaxis2, np.unwrap(np.angle(ydat), discont = pi/2) *180/pi)
+    g2.hold(False)
+    fig4.show()
+
+
 
 fig3 = plt.figure(3)
 axcolor = 'lightgoldenrodyellow'
@@ -104,21 +133,32 @@ axL2  = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
 axZ3  = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
 axL3  = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
 axZ4  = plt.axes([0.25, 0.60, 0.50, 0.03], axisbg=axcolor)
-sFreq = plt.Slider(axfreq, 'Freq (GHz)', 1, 14.0, valinit=4)
-sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.2)
-sCap = plt.Slider(axCap, 'Cap (fF)', 0, 500.0, valinit=1)
+axXPOS  = plt.axes([0.25, 0.70, 0.50, 0.03], axisbg=axcolor)
+axXSC  = plt.axes([0.25, 0.75, 0.50, 0.03], axisbg=axcolor)
+axATT  = plt.axes([0.25, 0.80, 0.50, 0.03], axisbg=axcolor)
+axPHI  = plt.axes([0.25, 0.85, 0.50, 0.03], axisbg=axcolor)
+
+sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0]/1e9, measdata.freq[-1]/1e9, valinit=5.3)
+sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.3)
+sCap = plt.Slider(axCap, 'Cap (fF)', 0, 500.0, valinit=40)
 sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=5)
-sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 200.0, valinit=50)
-sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 200.0, valinit=50)
-sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 200.0, valinit=50)
+sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 900.0, valinit=50)
+sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 400.0, valinit=50)
+sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 400.0, valinit=50)
 sL1 = plt.Slider(axL1, 'L1 (m)', 0.0, 0.1, valinit=0.01)
 sL2 = plt.Slider(axL2, 'L2 (m)', 0.0, 1.0, valinit=0.3)
-sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 2.0, valinit=0.9)
+sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.9)
 sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
+sXPOS = plt.Slider(axXPOS, 'x-pos', -1.0, 1.0, valinit=0)
+sXSC = plt.Slider(axXSC, 'x-scale', 0.5, 1.5, valinit=0.9)
+sATT = plt.Slider(axATT, 'Attenuation dBm', -70, 0.0, valinit=-50)
+sPHI = plt.Slider(axPHI, 'Phase offset', -360, 360.0, valinit= 0)
+
 fig3.show()
 
 def update(val):
     f0 = sFreq.val*1e9
+    measdata.findex = find_nearest(measdata.freq,f0)
     squid.Ic = sIc.val*1e-6
     squid.Cap = sCap.val*1e-15
     squid.R = sRsq.val*1e3
@@ -129,37 +169,34 @@ def update(val):
     elem.Z3 = sZ3.val
     elem.L3 = sL3.val*1e-3
     elem.Z4 = sZ4.val
+    measdata.XSC = sXSC.val
+    measdata.XPOS = sXPOS.val
+    measdata.ATT = sATT.val
+    measdata.PHI = sPHI.val
     SMat = get_SMresponse(f0,squid,elem)
-    plotfig2(SMat)
-sFreq.on_changed(update)
+    plotfig2(SMat,measdata)
+    plotfig4(SMat,measdata)
+
+
 sIc.on_changed(update)
 sCap.on_changed(update)
 sRsq.on_changed(update)
 sZ1.on_changed(update)
-sZ2.on_changed(update)
 sZ2.on_changed(update)
 sZ3.on_changed(update)
 sL1.on_changed(update)
 sL2.on_changed(update)
 sL3.on_changed(update)
 sZ4.on_changed(update)
+sXPOS.on_changed(update)
+sXSC.on_changed(update)
+sATT.on_changed(update)
+sPHI.on_changed(update)
+sFreq.on_changed(update)
 
-resetax = plt.axes([0.8, 0.025, 0.1, 0.04])
-button = plt.Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
-def reset(event):
-    sFreq.reset()
-    sIc.reset()
-    sCap.reset()
-    sRsq.reset()
-    sZ1.reset()
-    sZ2.reset()
-    sZ2.reset()
-    sL1.reset()
-    sL2.reset()
-    sL3.reset()
-    sZ4.reset()
-    update(0)
-button.on_clicked(reset)
+updatetax = plt.axes([0.1, 0.025, 0.1, 0.04])
+button2 = plt.Button(updatetax, 'Update', color=axcolor, hovercolor='0.975')
+button2.on_clicked(update)
 
 update(0)
 raw_input('Press enter to exit')
