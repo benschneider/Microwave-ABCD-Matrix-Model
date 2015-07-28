@@ -9,15 +9,10 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2 … ; each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
-
-<<<<<<< HEAD
 from numpy import pi, cos, log10, abs
 import numpy as np
 from parsers import dim, get_hdf5data
-=======
-from numpy import pi, cos, abs, zeros, angle, unwrap, log #, sin, log
-from parsers import dim #make_header, savemtx
->>>>>>> origin/master
+
 from ABCD import tline, sres, shunt, handler, terminator
 #from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 
@@ -90,15 +85,10 @@ def plotfig2(SMat,measdata):
     xaxis = squid.lin/flux0
     xaxis2 = np.linspace(-1+measdata.XPOS,1+measdata.XPOS,len(ydat))*measdata.XSC
     fig2 = plt.figure(2)
-<<<<<<< HEAD
     g1 = fig2.add_subplot(2, 1, 1)
     g1.plot(xaxis, 20*log10(abs(S11))+ measdata.ATT )
     g1.hold(True)
     g1.plot(xaxis2, 20*log10(abs(ydat)))
-=======
-    g1 = fig2.add_subplot(2, 2, 1)
-    g1.plot(xaxis, (abs(S11)))
->>>>>>> origin/master
     #g1.set_ylim([0.9,1.0])
     g1.hold(False)
     g2 = fig2.add_subplot(2, 1, 2) #, sharex=g1)
