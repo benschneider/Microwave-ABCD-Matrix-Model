@@ -6,6 +6,9 @@
 *.mtx
 
 *.py.swp
+*.mat
+
+.ropeproject
 
 play.py
 
