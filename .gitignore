@@ -1,5 +1,5 @@
 *.dat
-*.hdh5
+*.hdf5
 
 *.pyc
 
