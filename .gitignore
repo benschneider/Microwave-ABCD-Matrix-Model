@@ -8,6 +8,7 @@
 *.py.swp
 *.mat
 *.swp
+*.md.swp
 
 .ropeproject
 
