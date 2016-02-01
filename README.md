@@ -8,9 +8,9 @@
 
 #### settings are in plotter_experimental.py 
 
-filename = 'target.hdf5'	define datafile to be loaded for comparison
+filename = 'target.hdf5' |	define datafile to be loaded for comparison
 
-matplotlib.use('Qt4Agg')  	macosx, Qt4Agg, WX
+matplotlib.use('Qt4Agg') |	macosx, Qt4Agg, WX
 
 
 #### Run with
@@ -21,15 +21,15 @@ ipython -i plotter_experimental.py
 
 ## Structure
 
-plotter_experimental.py		Main Program which uses the other files
+plotter_experimental.py	-	Main Program which uses the other files
 
-ABCD.py 			ABCD Matrixes
+ABCD.py 		|	ABCD Matrixes
 
-parsers.py 			Data load and save functions
+parsers.py 		|	Data load and save functions
 
-interface.py			Loading buttons (contains an update function and a few more)
+interface.py		|	Loading buttons (contains an update function and a few more)
 
-fitdata.py			Fitting algorithm
+fitdata.py		|	Fitting algorithm
 
 
 ## Currently working on
