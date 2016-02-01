@@ -7,9 +7,10 @@
 
 *.py.swp
 *.mat
-.*.swp
+*.swp
 
 .ropeproject
+.gitignore
 
 play.py
 
