@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-
 ''' This File contains the drawing of the boxes e.t.c'''
 
 fig3 = plt.figure(3)
