@@ -224,7 +224,8 @@ def fixPhi(val0):
     t2 = np.unwrap(np.angle(S11))
     t3 = (t1-t2)
     measdata.PHI = measdata.PHI + t3[zerofluxidx]
-    sPHI.set_val(measdata.PHI)
+    if val0 is not False:
+        sPHI.set_val(measdata.PHI)
 
 
 def addphase(Data, Phi):
@@ -236,9 +237,6 @@ def addphase(Data, Phi):
 
 
 def getfit(Ic, Rsq, Cap):
-    squid.R = Rsq
-    squid.Cap = Cap
-    squid.Ic = Ic
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
     S11 = S11*10**(measdata.ATT / 20.0)
     S11 = addphase(S11, measdata.PHI)
@@ -248,6 +246,14 @@ def getfit(Ic, Rsq, Cap):
     c[0::2] = S11.real
     c[1::2] = S11.imag
     return c
+
+
+def gta1(x, Ic, Rsq, Cap):
+    squid.R = Rsq
+    squid.Cap = Cap
+    squid.Ic = Ic
+    fixPhi(False)
+    return getfit(Ic, Rsq, Cap)
 
 
 def fitcurve(val0):
