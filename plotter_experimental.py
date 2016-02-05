@@ -52,9 +52,10 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
+elem.Lbw = 1e-90
+elem.Lloop = 1e-90
 
 elem.update = True      # Set update to true
-measdata.ydat = measdata.D1complex[:, measdata.findex]
 
 
 def get_sMatrix(b, elem, Zsq):
@@ -84,7 +85,7 @@ def get_Zsq(f0, squid):
     '''
     flux = squid.lin
     L = flux0/(squid.Ic*2.0*pi*abs(cos(pi*flux/squid.flux0)))
-    Ysq = (1.0/squid.R + 1j*2.0*pi*f0*squid.Cap - 1j/(2.0*pi*f0*L+1e-90))
+    Ysq = (1.0/squid.R + 1j*2.0*pi*f0*squid.Cap - 1j/(2.0*pi*f0*L+elem.Lbw))
     return (1.0/Ysq)
 
 
@@ -101,6 +102,11 @@ def get_SMresponse(f0, squid, elem):
 
 
 def getModelData(squid, elem, measdata):
+    '''
+    Get S11 including Attenuation and Phase
+    is using the full ABCD Model
+    Phase and Attenuation is added (outside the ABCD model)
+    '''
     f0 = sFreq.val * 1e9
     SMat = get_SMresponse(f0, squid, elem)
     S11 = SMat[:, 0, 0]
@@ -149,54 +155,11 @@ def plotfig5(xaxis, xaxis2, S11, ydat):
     return 0
 
 
-fig3 = plt.figure(3)
-fig3.clear()
-
-# --- Sliders Start ---
-axcolor = 'lightgoldenrodyellow'
-
-axATT = plt.axes([0.25, 0.80, 0.50, 0.03], axisbg=axcolor)
-sATT = plt.Slider(axATT, 'Attenuation dBm', -90, -20.0,
-                  valinit=-51.44, valfmt='%1.5f')
-axPHI = plt.axes([0.25, 0.85, 0.50, 0.03], axisbg=axcolor)
-sPHI = plt.Slider(axPHI, 'Phase offset', -np.pi, np.pi, valinit=0)
-axXSC = plt.axes([0.25, 0.75, 0.50, 0.03], axisbg=axcolor)
-sXSC = plt.Slider(axXSC, 'x-scale', 0.9, 1.1, valinit=1.04187, valfmt='%1.5f')
-axXPOS = plt.axes([0.25, 0.70, 0.50, 0.03], axisbg=axcolor)
-sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
-
-axZ4 = plt.axes([0.25, 0.60, 0.50, 0.03], axisbg=axcolor)
-sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
-axZ3 = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
-sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 400.0, valinit=50)
-axL3 = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
-sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.9)
-axZ2 = plt.axes([0.25, 0.40, 0.50, 0.03], axisbg=axcolor)
-sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 400.0, valinit=50)
-axL2 = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
-sL2 = plt.Slider(axL2, 'L2 (m)', 0.0, 1.0, valinit=0.3)
-axZ1 = plt.axes([0.25, 0.30, 0.50, 0.03], axisbg=axcolor)
-sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 900.0, valinit=50)
-axL1 = plt.axes([0.25, 0.35, 0.50, 0.03], axisbg=axcolor)
-sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167,
-                 valinit=0.011625, valfmt='%1.10f')
-
-axRsq = plt.axes([0.25, 0.25, 0.50, 0.03], axisbg=axcolor)
-sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=0.75)
-axCap = plt.axes([0.25, 0.20, 0.50, 0.03], axisbg=axcolor)
-sCap = plt.Slider(axCap, 'Cap (fF)', 0.01, 500.0, valinit=40)
-axIc = plt.axes([0.25, 0.15, 0.50, 0.03], axisbg=axcolor)
-sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.4)
-axfreq = plt.axes([0.25, 0.1, 0.50, 0.03], axisbg=axcolor)
-sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0] / 1e9,
-                   measdata.freq[-1] / 1e9, valinit=measdata.freq[0] / 1e9)
-
-# --- Sliders End ---
-
-fig3.show()
-
-
 def find_nearest(someArray, value):
+    '''
+    Returns an index number (idx)
+    at which the someArray.[idx] is closest to value
+    '''
     idx = abs(someArray - value).argmin()
     return idx
 
@@ -206,6 +169,7 @@ def update(val):
         return 0
     f0 = sFreq.val * 1e9
     measdata.findex = find_nearest(measdata.freq, f0)
+    measdata.ydat = measdata.D1complex[:, measdata.findex]
     squid.Ic = np.float64(sIc.val) * 1e-6
     squid.Cap = np.float64(sCap.val) * 1e-15
     squid.R = np.float64(sRsq.val) * 1e3
@@ -249,7 +213,7 @@ def update2(val):
 
 
 def matchXaxis(val0):
-    x2 = update(val0)
+    x2 = measdata.xaxis
     squid.start = x2[0]
     squid.stop = x2[-1]
     squid.update_lin(len(x2))
@@ -345,6 +309,52 @@ def fitcurve(val0):
     print abs(np.mean((residual*residual)))*1e8
     return 0
 
+
+def xyFind(val):
+    preFit(0)
+    return 0
+
+
+# --- Interface Buttons and Sliders ---
+# --- Sliders Start ---
+fig3 = plt.figure(3)
+fig3.clear()
+axcolor = 'lightgoldenrodyellow'
+axATT = plt.axes([0.25, 0.80, 0.50, 0.03], axisbg=axcolor)
+sATT = plt.Slider(axATT, 'Attenuation dBm', -90, -20.0,
+                  valinit=-51.44, valfmt='%1.5f')
+axPHI = plt.axes([0.25, 0.85, 0.50, 0.03], axisbg=axcolor)
+sPHI = plt.Slider(axPHI, 'Phase offset', -np.pi, np.pi, valinit=0)
+axXSC = plt.axes([0.25, 0.75, 0.50, 0.03], axisbg=axcolor)
+sXSC = plt.Slider(axXSC, 'x-scale', 0.9, 1.1, valinit=1.04187, valfmt='%1.5f')
+axXPOS = plt.axes([0.25, 0.70, 0.50, 0.03], axisbg=axcolor)
+sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
+axZ4 = plt.axes([0.25, 0.60, 0.50, 0.03], axisbg=axcolor)
+sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
+axZ3 = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
+sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 400.0, valinit=50)
+axL3 = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
+sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.9)
+axZ2 = plt.axes([0.25, 0.40, 0.50, 0.03], axisbg=axcolor)
+sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 400.0, valinit=50)
+axL2 = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
+sL2 = plt.Slider(axL2, 'L2 (m)', 0.0, 1.0, valinit=0.3)
+axZ1 = plt.axes([0.25, 0.30, 0.50, 0.03], axisbg=axcolor)
+sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 900.0, valinit=50)
+axL1 = plt.axes([0.25, 0.35, 0.50, 0.03], axisbg=axcolor)
+sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167,
+                 valinit=0.011625, valfmt='%1.10f')
+axRsq = plt.axes([0.25, 0.25, 0.50, 0.03], axisbg=axcolor)
+sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=0.75)
+axCap = plt.axes([0.25, 0.20, 0.50, 0.03], axisbg=axcolor)
+sCap = plt.Slider(axCap, 'Cap (fF)', 0.01, 500.0, valinit=40)
+axIc = plt.axes([0.25, 0.15, 0.50, 0.03], axisbg=axcolor)
+sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.4)
+axfreq = plt.axes([0.25, 0.1, 0.50, 0.03], axisbg=axcolor)
+sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0] / 1e9,
+                   measdata.freq[-1] / 1e9, valinit=measdata.freq[0] / 1e9)
+
+# --- Sliders Reactions ---
 sIc.on_changed(update)
 sCap.on_changed(update)
 sRsq.on_changed(update)
@@ -361,11 +371,7 @@ sATT.on_changed(update)
 sPHI.on_changed(update)
 sFreq.on_changed(update)
 
-
-def xyFind(val):
-    preFit(0)
-    return 0
-
+# --- Buttons
 prFitxB = plt.axes([0.35, 0.025, 0.1, 0.04])
 button5 = plt.Button(prFitxB, 'PreFit', color=axcolor, hovercolor='0.975')
 button5.on_clicked(xyFind)
@@ -381,6 +387,10 @@ button3.on_clicked(fitcurve)
 updatetax = plt.axes([0.05, 0.025, 0.1, 0.04])
 button2 = plt.Button(updatetax, 'Update', color=axcolor, hovercolor='0.975')
 button2.on_clicked(update2)
+
+fig3.show()
+
+# --- Interface End
 
 update(0)
 matchXaxis(0)
