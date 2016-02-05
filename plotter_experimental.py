@@ -4,19 +4,19 @@ Created on Fri Jul 10 15:02:34 2015
 @author: benschneider
 System:
 SQUID at the end of a Transmission line.
-ABCD-Matrix: M1, M2 … ; each represent one element.
+ABCD-Matrix: M1, M2  each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
-from numpy import pi, cos, abs, log10
+
+from numpy import pi, cos, abs  # , log10
 import numpy as np
-from time import time
+import matplotlib
+matplotlib.use('Qt4Agg')  # macosx, Qt4Agg, WX
 from parsers import dim, get_hdf5data
 from ABCD import tline, sres, shunt, handler  # , terminator
 # from scipy.optimize import curve_fit  # , leastsq
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
-from lmfit import minimize, Parameters, Parameter, report_fit
-import matplotlib
-matplotlib.use('Qt4Agg')  # macosx, Qt4Agg, WX
+from lmfit import minimize, Parameters, report_fit  # , Parameter
 import matplotlib.pyplot as plt
 # matplotlib.use('macosx')
 
@@ -52,7 +52,7 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
-squid.Lbw = 1e-90
+squid.Lbw = 1e-20
 squid.Lloop = 1e-90
 
 elem.update = True      # Set update to true
@@ -85,9 +85,11 @@ def get_Zsq(f0, squid):
     Then calulcates the Impedance (Cap, Freq, L)
     '''
     flux = squid.lin
-    L = flux0/(squid.Ic*2.0*pi*abs(cos(pi*flux/squid.flux0)))
-    Ysq = (1.0/squid.R + 1j*2.0*pi*f0*squid.Cap - 1j/(2.0*pi*f0*L+squid.Lbw))
-    return (1.0/Ysq)
+    L = (flux0 /
+         (squid.Ic * 2.0 * pi * abs(cos(pi * flux / squid.flux0))))
+    Ysq = (1.0 / squid.R + 1j * 2.0 * pi * f0 * squid.Cap - 1j /
+           (2.0 * pi * f0 * L + squid.Lbw))
+    return (1.0 / Ysq)
 
 
 def get_SMresponse(f0, squid, elem):
@@ -102,7 +104,7 @@ def get_SMresponse(f0, squid, elem):
     return get_sMatrix(b, elem, Zsq)
 
 
-def getModelData(squid, elem, measdata):
+def getModelData():
     '''
     Get S11 including Attenuation and Phase
     is using the full ABCD Model
@@ -112,13 +114,12 @@ def getModelData(squid, elem, measdata):
     SMat = get_SMresponse(f0, squid, elem)
     S11 = SMat[:, 0, 0]
     squid.xaxis = squid.lin / flux0
-    measdata.xaxis = np.linspace(-1+measdata.XPOS,
-                                 1+measdata.XPOS,
-                                 len(measdata.ydat))*measdata.XSC
-    S11 = S11*10**(measdata.ATT / 20.0)
+    measdata.xaxis = np.linspace(- 1 + measdata.XPOS,
+                                 1 + measdata.XPOS,
+                                 len(measdata.ydat)) * measdata.XSC
+    S11 = S11 * 10 ** (measdata.ATT / 20.0)
     S11 = addphase(S11, measdata.PHI)
     elem.S11 = S11
-    return S11, measdata.ydat
 
 
 def plotfig2(xaxis, xaxis2, S11, ydat):
@@ -131,7 +132,7 @@ def plotfig2(xaxis, xaxis2, S11, ydat):
     g1.hold(False)
     g2 = fig2.add_subplot(2, 1, 2)
     g2.hold(True)
-    g2.plot(xaxis,  np.unwrap(np.angle(S11),  discont=pi))
+    g2.plot(xaxis, np.unwrap(np.angle(S11), discont=pi))
     g2.plot(xaxis2, np.unwrap(np.angle(ydat), discont=pi))
     g2.hold(False)
     plt.draw()
@@ -148,7 +149,7 @@ def plotfig5(xaxis, xaxis2, S11, ydat):
     g1.hold(False)
     g2 = fig5.add_subplot(2, 1, 2)
     g2.hold(True)
-    g2.plot(xaxis,  S11.imag)
+    g2.plot(xaxis, S11.imag)
     g2.plot(xaxis2, ydat.imag)
     g2.hold(False)
     plt.draw()
@@ -184,11 +185,11 @@ def update(val):
     measdata.XPOS = np.float64(sXPOS.val)
     measdata.ATT = np.float64(sATT.val)
     measdata.PHI = np.float64(sPHI.val)
-    S11, ydat = getModelData(squid, elem, measdata)
+    getModelData()  # updateS11
     xaxis = squid.xaxis
     xaxis2 = measdata.xaxis
-    plotfig2(xaxis, xaxis2, S11, ydat)
-    plotfig5(xaxis, xaxis2, S11, ydat)
+    plotfig2(xaxis, xaxis2, elem.S11, measdata.ydat)
+    plotfig5(xaxis, xaxis2, elem.S11, measdata.ydat)
     return
 
 
@@ -196,9 +197,9 @@ def update2(val):
     elem.update = False  # Do not update figure on changes
     sPHI.set_val(measdata.PHI)
     sATT.set_val(measdata.ATT)
-    sIc.set_val(squid.Ic*1e6)
-    sRsq.set_val(squid.R*1e-3)
-    sCap.set_val(squid.Cap*1e15)
+    sIc.set_val(squid.Ic * 1e6)
+    sRsq.set_val(squid.R * 1e-3)
+    sCap.set_val(squid.Cap * 1e15)
     sZ1.set_val(elem.Z1)
     sZ2.set_val(elem.Z2)
     elem.update = True
@@ -219,14 +220,14 @@ def matchXaxis(val0):
 
 
 def preFit(val0):
-    S11, ydat = getModelData(squid, elem, measdata)
+    getModelData()
     zerofluxidx = find_nearest(measdata.xaxis, 0.0)
-    t1 = np.unwrap(np.angle(ydat),  discont=pi)
-    t2 = np.unwrap(np.angle(S11),  discont=pi)
+    t1 = np.unwrap(np.angle(measdata.ydat), discont=pi)
+    t2 = np.unwrap(np.angle(elem.S11), discont=pi)
     t3 = t1 - t2
     plt.figure(6)
     plt.clf()
-    plt.plot(measdata.xaxis, (np.angle(S11) - np.angle(ydat)))
+    plt.plot(measdata.xaxis, (np.angle(elem.S11) - np.angle(measdata.ydat)))
     plt.draw()
     measdata.PHI = measdata.PHI + t3[zerofluxidx]
     # t2 = 20*log10(np.abs(ydat)) - 20*log10(np.abs(S11))
@@ -236,18 +237,16 @@ def preFit(val0):
 def addphase(Data, Phi):
     Phi = Phi
     temp1 = np.empty(Data.shape, dtype='complex64')
-    temp1 = (np.sin(Phi)*Data.real + np.cos(Phi)*Data.imag) * 1j
-    temp1 = (np.cos(Phi)*Data.real - np.sin(Phi)*Data.imag) + temp1
+    temp1 = (np.sin(Phi) * Data.real + np.cos(Phi) * Data.imag) * 1j
+    temp1 = (np.cos(Phi) * Data.real - np.sin(Phi) * Data.imag) + temp1
     return temp1
 
 
 def getfit():
-    S11, ydat = getModelData(squid, elem, measdata)
-    # S11 = S11*10**(measdata.ATT / 20.0)
-    # S11 = addphase(S11, measdata.PHI)
-    c = np.empty(len(S11)*2, dtype='float64')
-    c[0::2] = S11.real
-    c[1::2] = S11.imag
+    getModelData()
+    c = np.empty(len(elem.S11) * 2, dtype='float64')
+    c[0::2] = elem.S11.real
+    c[1::2] = elem.S11.imag
     return c
 
 
@@ -275,20 +274,20 @@ def fitcurve(val0):
     if squid.matchX is False:
         return
     ydat = measdata.D1complex[:, measdata.findex]
-    data = np.empty(len(ydat)*2, dtype='float64')
+    data = np.empty(len(ydat) * 2, dtype='float64')
     data[0::2] = ydat.real
     data[1::2] = ydat.imag
     preFit(False)
-    xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt*2))
+    xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt * 2))
     # Using standard curve_fit settings
 
     params = Parameters()
-    params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6)
-    params.add('R', value=squid.R, min=1, max=1e5)
-    params.add('Cap', value=squid.Cap, min=1e-15, max=1e-13)
-    params.add('Z1', value=squid.Cap, min=25, max=100)
-    params.add('Lbw', value=squid.Lbw, min=1e-90, max=1e-10)
-    # params.add('Z3', value=squid.Cap, min=25, max=100)
+    params.add('Lbw', value=squid.Lbw, min=1e-20, max=1e-10, vary=True)
+    params.add('R', value=squid.R, min=1, max=1e5, vary=False)
+    params.add('Cap', value=squid.Cap, min=1e-15, max=1e-13, vary=False)
+    params.add('Z1', value=squid.Cap, min=40, max=60, vary=False)
+    params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6, vary=False)
+    params.add('Z3', value=squid.Cap, min=25, max=100)
     result = minimize(gta1, params, args=(xaxis3, data))
     print report_fit(result)
 
@@ -303,17 +302,18 @@ def fitcurve(val0):
 
     # Calculate and plot residual there
     S11 = getfit()
-    residual = data-S11
+    residual = data - S11
     plt.figure(4)
     plt.clf()
     plt.plot(xaxis3, residual)
     plt.draw()
-    print abs(np.mean((residual*residual)))*1e8
+    print abs(np.mean((residual * residual))) * 1e8
     return
 
 
 def xyFind(val):
     preFit(0)
+    update2(0)
     return
 
 
