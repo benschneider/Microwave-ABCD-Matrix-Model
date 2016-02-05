@@ -7,13 +7,14 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2 … ; each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
-from numpy import pi, cos, abs  # log10
+from numpy import pi, cos, abs, log10
 import numpy as np
+from time import time
 from parsers import dim, get_hdf5data
 from ABCD import tline, sres, shunt, handler  # , terminator
 # from scipy.optimize import curve_fit  # , leastsq
-from lmfit import minimize, Parameters, Parameter, report_fit
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
+from lmfit import minimize, Parameters, Parameter, report_fit
 import matplotlib
 matplotlib.use('Qt4Agg')  # macosx, Qt4Agg, WX
 import matplotlib.pyplot as plt
@@ -51,6 +52,7 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
+elem.update = True      # Set update to true
 
 
 def get_sMatrix(b, elem, Zsq):
@@ -129,7 +131,7 @@ fig3.clear()
 axcolor = 'lightgoldenrodyellow'
 
 axATT = plt.axes([0.25, 0.80, 0.50, 0.03], axisbg=axcolor)
-sATT = plt.Slider(axATT, 'Attenuation dBm', -60, -40.0,
+sATT = plt.Slider(axATT, 'Attenuation dBm', -90, -20.0,
                   valinit=-51.44, valfmt='%1.5f')
 axPHI = plt.axes([0.25, 0.85, 0.50, 0.03], axisbg=axcolor)
 sPHI = plt.Slider(axPHI, 'Phase offset', -np.pi, np.pi, valinit=0)
@@ -175,6 +177,8 @@ def find_nearest(someArray, value):
 
 
 def update(val):
+    if elem.update is False:
+        return 0
     f0 = sFreq.val * 1e9
     measdata.findex = find_nearest(measdata.freq, f0)
     squid.Ic = np.float64(sIc.val) * 1e-6
@@ -196,11 +200,27 @@ def update(val):
     S11 = c[1::2]*1j + c[0::2]
     plotfig2(xaxis, xaxis2, S11, ydat)
     plotfig5(xaxis, xaxis2, S11, ydat)
-    # if squid.matchX is True:
-    #     fitcurve(val)
-
     return xaxis2
-    # plotfig4(SMat, measdata)
+
+
+def update2():
+    Tstart = time()
+    # Tell update not to run on each slider change
+    elem.update = False
+    sPHI.set_val(measdata.PHI)
+    sATT.set_val(measdata.ATT)
+    sIc.set_val(squid.Ic*1e6)
+    sRsq.set_val(squid.R*1e-3)
+    sCap.set_val(squid.Cap*1e15)
+    sZ1.set_val(elem.Z1)
+    sZ2.set_val(elem.Z2)
+    sZ3.set_val(elem.Z3)
+    sL1.set_val(elem.L1*1e1)
+    sL2.set_val(elem.L2)
+    elem.update = True
+    sL3.set_val(elem.L3*1e3)
+    T = time()-Tstart
+    print "sliders are updated ", T
 
 
 def matchXaxis(val0):
@@ -210,21 +230,22 @@ def matchXaxis(val0):
     squid.update_lin(len(x2))
     squid.matchX = True
     update(0)
+    return 0
 
 
-def fixPhi(val0):
+def preFit(val0):
+    Tstart = time()
     # find difference in Phi values and correct em
-    # update(val0)
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
     c = getfit()
     S11 = c[1::2]*1j + c[0::2]
     zerofluxidx = find_nearest(xaxis2, 0.0)
-    t1 = np.unwrap(np.angle(ydat))
-    t2 = np.unwrap(np.angle(S11))
-    t3 = (t1-t2)
-    measdata.PHI = measdata.PHI + t3[zerofluxidx]
-    if val0 is not False:
-        sPHI.set_val(measdata.PHI)
+    t1 = np.unwrap(np.angle(ydat)) - np.unwrap(np.angle(S11))
+    # t2 = 20*log10(np.abs(ydat)) - 20*log10(np.abs(S11))
+    measdata.PHI = measdata.PHI + t1[zerofluxidx]
+    # measdata.ATT = measdata.ATT - t2[zerofluxidx]
+    T = time()-Tstart
+    print "Prefit done ", T
 
 
 def addphase(Data, Phi):
@@ -259,7 +280,7 @@ def gta1(params, x, data):
     squid.Ic = params['Ic'].value
     elem.Z1 = params['Z1'].value
     elem.Z3 = params['Z3'].value
-    fixPhi(False)
+    preFit(False)
     return getfit() - data
 
 
@@ -270,7 +291,7 @@ def fitcurve(val0):
     data = np.empty(len(ydat)*2, dtype='float64')
     data[0::2] = ydat.real
     data[1::2] = ydat.imag
-    fixPhi(0)
+    preFit(False)
     xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt*2))
     # Using standard curve_fit settings
 
@@ -288,12 +309,8 @@ def fitcurve(val0):
     squid.Cap = result.params['Cap'].value
     elem.Z1 = result.params['Z1'].value
     elem.Z3 = result.params['Z3'].value
-    sIc.set_val(result.params['Ic'].value*1e6)
-    sRsq.set_val(result.params['R'].value*1e-3)
-    sCap.set_val(result.params['Cap'].value*1e15)
-    sZ1.set_val(result.params['Z1'].value)
-    sZ3.set_val(result.params['Z3'].value)
-    fixPhi(True)
+    update2()
+    preFit(True)
 
     # Calculate and plot residual there
     S11 = getfit()
@@ -321,9 +338,13 @@ sPHI.on_changed(update)
 sFreq.on_changed(update)
 
 
-PhiFind = plt.axes([0.35, 0.025, 0.1, 0.04])
-button5 = plt.Button(PhiFind, 'FixPhi', color=axcolor, hovercolor='0.975')
-button5.on_clicked(fixPhi)
+def xyFind(val):
+    preFit(0)
+    update2()
+
+prFitxB = plt.axes([0.35, 0.025, 0.1, 0.04])
+button5 = plt.Button(prFitxB, 'PreFit', color=axcolor, hovercolor='0.975')
+button5.on_clicked(xyFind)
 
 mXaxB = plt.axes([0.25, 0.025, 0.1, 0.04])
 button4 = plt.Button(mXaxB, 'MatchX', color=axcolor, hovercolor='0.975')
@@ -338,6 +359,7 @@ button2 = plt.Button(updatetax, 'Update', color=axcolor, hovercolor='0.975')
 button2.on_clicked(update)
 
 update(0)
-
+matchXaxis(0)
+preFit(0)
 # sIc.reset()
 # sIc.set_val(3.5)
