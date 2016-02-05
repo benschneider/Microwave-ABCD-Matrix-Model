@@ -111,14 +111,14 @@ def getModelData(squid, elem, measdata):
     SMat = get_SMresponse(f0, squid, elem)
     S11 = SMat[:, 0, 0]
     squid.xaxis = squid.lin / flux0
-    ydat = measdata.ydat
     measdata.xaxis = np.linspace(-1+measdata.XPOS,
                                  1+measdata.XPOS,
-                                 len(ydat))*measdata.XSC
+                                 len(measdata.ydat))*measdata.XSC
     S11 = S11*10**(measdata.ATT / 20.0)
     S11 = addphase(S11, measdata.PHI)
     elem.S11 = S11
-    return S11, ydat
+    print S11[0:3]
+    return S11, measdata.ydat
 
 
 def plotfig2(xaxis, xaxis2, S11, ydat):
@@ -226,9 +226,12 @@ def preFit(val0):
     Tstart = time()
     S11, ydat = getModelData(squid, elem, measdata)
     zerofluxidx = find_nearest(squid.xaxis, 0.0)
-    t1 = (np.unwrap(np.angle(ydat)) - np.unwrap(np.angle(S11)))
-    measdata.PHI = measdata.PHI + t1[zerofluxidx]
-    print measdata.PHI
+    t1 = np.unwrap(np.angle(ydat),  discont=pi)
+    t2 = np.unwrap(np.angle(S11),  discont=pi)
+    t3 = t1 - t2
+    print 'Old Phi: ', measdata.PHI
+    measdata.PHI = measdata.PHI + t3[zerofluxidx]
+    print 'New Phi: ', measdata.PHI
     # t2 = 20*log10(np.abs(ydat)) - 20*log10(np.abs(S11))
     # measdata.ATT = measdata.ATT - t2[zerofluxidx]
     T = time()-Tstart
@@ -394,7 +397,4 @@ fig3.show()
 
 update(0)
 matchXaxis(0)
-preFit(0)
-update2(0)
-# sIc.reset()
-# sIc.set_val(3.5)
+update(0)
