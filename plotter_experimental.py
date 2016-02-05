@@ -52,10 +52,19 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
+
 elem.update = True      # Set update to true
+measdata.ydat = measdata.D1complex[:, measdata.findex]
 
 
 def get_sMatrix(b, elem, Zsq):
+    '''
+    This is where the assembly of the model happens using ABCD Matrixes
+    SM represents the SQUID response
+    M1 respresents 3 sections of Transmission lines (L1,Z1)(L2,Z2)(L3,Z3)
+    Zsq is the impedance of the SQUID (flux) (vector)
+    Assembly is done for each flux point and change in Zsq
+    '''
     SM = np.zeros((len(Zsq), 2, 2)) * 1j  # complex matrix
     M1 = (tline(elem.Z1, b, elem.L1) *
           tline(elem.Z2, b, elem.L2) *
@@ -68,6 +77,11 @@ def get_sMatrix(b, elem, Zsq):
 
 
 def get_Zsq(f0, squid):
+    '''
+    Calculates the Impedance of the SQUID.
+    First calculates the inductance L  (flux)
+    Then calulcates the Impedance (Cap, Freq, L)
+    '''
     flux = squid.lin
     L = flux0/(squid.Ic*2.0*pi*abs(cos(pi*flux/squid.flux0)))
     Ysq = (1.0/squid.R + 1j*2.0*pi*f0*squid.Cap - 1j/(2.0*pi*f0*L+1e-90))
@@ -75,6 +89,12 @@ def get_Zsq(f0, squid):
 
 
 def get_SMresponse(f0, squid, elem):
+    '''
+    b is a wavenumber used for the Transmission line sections
+    2e8 is ~ speed of light in a transmission line
+    Zsq vector is the Squid impedance (flux)
+    get_sMatrix assembles the individual Transmission sections
+    '''
     b = 2.0 * pi * f0 / 2.0e-8
     Zsq = get_Zsq(f0, squid)
     return get_sMatrix(b, elem, Zsq)
@@ -83,13 +103,16 @@ def get_SMresponse(f0, squid, elem):
 def getModelData(squid, elem, measdata):
     f0 = sFreq.val * 1e9
     SMat = get_SMresponse(f0, squid, elem)
-    ydat = measdata.D1complex[:, measdata.findex]
     S11 = SMat[:, 0, 0]
-    xaxis = squid.lin / flux0
-    xaxis2 = np.linspace(-1 + measdata.XPOS,
-                         1 + measdata.XPOS,
-                         len(ydat)) * measdata.XSC
-    return xaxis, xaxis2, S11, ydat
+    squid.xaxis = squid.lin / flux0
+    ydat = measdata.ydat
+    measdata.xaxis = np.linspace(-1+measdata.XPOS,
+                                 1+measdata.XPOS,
+                                 len(ydat))*measdata.XSC
+    S11 = S11*10**(measdata.ATT / 20.0)
+    S11 = addphase(S11, measdata.PHI)
+    elem.S11 = S11
+    return S11, ydat
 
 
 def plotfig2(xaxis, xaxis2, S11, ydat):
@@ -106,6 +129,7 @@ def plotfig2(xaxis, xaxis2, S11, ydat):
     g2.plot(xaxis2, np.unwrap(np.angle(ydat), discont=pi))
     g2.hold(False)
     plt.draw()
+    return
 
 
 def plotfig5(xaxis, xaxis2, S11, ydat):
@@ -122,6 +146,7 @@ def plotfig5(xaxis, xaxis2, S11, ydat):
     g2.plot(xaxis2, ydat.imag)
     g2.hold(False)
     plt.draw()
+    return 0
 
 
 fig3 = plt.figure(3)
@@ -195,15 +220,15 @@ def update(val):
     measdata.XPOS = sXPOS.val
     measdata.ATT = sATT.val
     measdata.PHI = sPHI.val
-    xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    c = getfit()
-    S11 = c[1::2]*1j + c[0::2]
+    S11, ydat = getModelData(squid, elem, measdata)
+    xaxis = squid.xaxis
+    xaxis2 = measdata.xaxis
     plotfig2(xaxis, xaxis2, S11, ydat)
     plotfig5(xaxis, xaxis2, S11, ydat)
-    return xaxis2
+    return 0
 
 
-def update2():
+def update2(val):
     Tstart = time()
     # Tell update not to run on each slider change
     elem.update = False
@@ -235,14 +260,12 @@ def matchXaxis(val0):
 
 def preFit(val0):
     Tstart = time()
-    # find difference in Phi values and correct em
-    xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    c = getfit()
-    S11 = c[1::2]*1j + c[0::2]
-    zerofluxidx = find_nearest(xaxis2, 0.0)
-    t1 = np.unwrap(np.angle(ydat)) - np.unwrap(np.angle(S11))
-    # t2 = 20*log10(np.abs(ydat)) - 20*log10(np.abs(S11))
+    S11, ydat = getModelData(squid, elem, measdata)
+    zerofluxidx = find_nearest(squid.xaxis, 0.0)
+    t1 = (np.unwrap(np.angle(ydat)) - np.unwrap(np.angle(S11)))
     measdata.PHI = measdata.PHI + t1[zerofluxidx]
+    print measdata.PHI
+    # t2 = 20*log10(np.abs(ydat)) - 20*log10(np.abs(S11))
     # measdata.ATT = measdata.ATT - t2[zerofluxidx]
     T = time()-Tstart
     print "Prefit done ", T
@@ -257,9 +280,9 @@ def addphase(Data, Phi):
 
 
 def getfit():
-    xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    S11 = S11*10**(measdata.ATT / 20.0)
-    S11 = addphase(S11, measdata.PHI)
+    S11, ydat = getModelData(squid, elem, measdata)
+    # S11 = S11*10**(measdata.ATT / 20.0)
+    # S11 = addphase(S11, measdata.PHI)
     c = np.empty(len(S11)*2, dtype='float64')
     c[0::2] = S11.real
     c[1::2] = S11.imag
@@ -309,7 +332,7 @@ def fitcurve(val0):
     squid.Cap = result.params['Cap'].value
     elem.Z1 = result.params['Z1'].value
     elem.Z3 = result.params['Z3'].value
-    update2()
+    update2(0)
     preFit(True)
 
     # Calculate and plot residual there
@@ -320,6 +343,7 @@ def fitcurve(val0):
     plt.plot(xaxis3, residual)
     plt.draw()
     print abs(np.mean((residual*residual)))*1e8
+    return 0
 
 sIc.on_changed(update)
 sCap.on_changed(update)
@@ -340,7 +364,7 @@ sFreq.on_changed(update)
 
 def xyFind(val):
     preFit(0)
-    update2()
+    return 0
 
 prFitxB = plt.axes([0.35, 0.025, 0.1, 0.04])
 button5 = plt.Button(prFitxB, 'PreFit', color=axcolor, hovercolor='0.975')
@@ -356,10 +380,11 @@ button3.on_clicked(fitcurve)
 
 updatetax = plt.axes([0.05, 0.025, 0.1, 0.04])
 button2 = plt.Button(updatetax, 'Update', color=axcolor, hovercolor='0.975')
-button2.on_clicked(update)
+button2.on_clicked(update2)
 
 update(0)
 matchXaxis(0)
 preFit(0)
+update2(0)
 # sIc.reset()
 # sIc.set_val(3.5)
