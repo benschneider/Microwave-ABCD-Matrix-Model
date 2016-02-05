@@ -11,7 +11,8 @@ from numpy import pi, cos, abs  # log10
 import numpy as np
 from parsers import dim, get_hdf5data
 from ABCD import tline, sres, shunt, handler  # , terminator
-from scipy.optimize import curve_fit  # , leastsq
+# from scipy.optimize import curve_fit  # , leastsq
+from lmfit import minimize, Parameters, Parameter, report_fit
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 import matplotlib
 matplotlib.use('Qt4Agg')  # macosx, Qt4Agg, WX
@@ -193,7 +194,7 @@ def update(val):
     measdata.ATT = sATT.val
     measdata.PHI = sPHI.val
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    c = getfit(squid.Ic, squid.R, squid.Cap)
+    c = getfit()
     S11 = c[1::2]*1j + c[0::2]
     plotfig2(xaxis, xaxis2, S11, ydat)
     plotfig5(xaxis, xaxis2, S11, ydat)
@@ -217,7 +218,7 @@ def fixPhi(val0):
     # find difference in Phi values and correct em
     # update(val0)
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    c = getfit(squid.Ic, squid.R, squid.Cap)
+    c = getfit()
     S11 = c[1::2]*1j + c[0::2]
     zerofluxidx = find_nearest(xaxis2, 0.0)
     t1 = np.unwrap(np.angle(ydat))
@@ -236,7 +237,7 @@ def addphase(Data, Phi):
     return temp1
 
 
-def getfit(Ic, Rsq, Cap):
+def getfit():
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
     S11 = S11*10**(measdata.ATT / 20.0)
     S11 = addphase(S11, measdata.PHI)
@@ -248,43 +249,71 @@ def getfit(Ic, Rsq, Cap):
     return c
 
 
-def gta1(x, Ic, Rsq, Cap):
-    squid.R = Rsq
-    squid.Cap = Cap
-    squid.Ic = Ic
+# def realimag(array):
+#     return np.array([(x.real, x.imag) for x in array]).flatten()
+# def residual(params, x, data=None):
+#     ....
+#     resid = calculate_complex_residual()
+#     return realimag(resid)
+
+
+def gta1(params, x, data):
+    squid.R = params['R'].value
+    squid.Cap = params['Cap'].value
+    squid.Ic = params['Ic'].value
     fixPhi(False)
-    return getfit(Ic, Rsq, Cap)
+    return getfit() - data
 
 
 def fitcurve(val0):
     if squid.matchX is False:
         return 0
     ydat = measdata.D1complex[:, measdata.findex]
-    c = np.empty(len(ydat)*2, dtype='float64')
-    c[0::2] = ydat.real
-    c[1::2] = ydat.imag
+    data = np.empty(len(ydat)*2, dtype='float64')
+    data[0::2] = ydat.real
+    data[1::2] = ydat.imag
     fixPhi(0)
+
     xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt*2))
     # Using standard curve_fit settings
-    initguess = [squid.Ic, squid.R, squid.Cap]
-    popt = initguess
-    popt, pcov = curve_fit(getfit, xaxis3, c, p0=initguess)
-    # Update fittet values to Sliders and Environment
-    squid.Ic = popt[0]
-    squid.R = popt[1]
-    squid.Cap = popt[2]
-    sIc.set_val(popt[0]*1e6)
-    sRsq.set_val(popt[1]*1e-3)
-    sCap.set_val(popt[2]*1e15)
+
+    params = Parameters()
+    params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6)
+    params.add('R', value=squid.R, min=0, max=1e5)
+    params.add('Cap', value=squid.Cap, min=0e-17, max=1e-13)
+
+    result = minimize(gta1, params, args=(xaxis3, data))
+    report_fit(params)
+    # out = minimize(residual, params, args=(x, data, eps_data))
+
+    squid.Ic = result.params.values['Ic']
+    squid.R = result.params.values['R']
+    squid.Cap = result.params.values['Cap']
+    sIc.set_val(result.params.values['Ic']*1e6)
+    sRsq.set_val(result.params.values['R']*1e-3)
+    sCap.set_val(result.params.values['Cap']*1e15)
+
+    print result
+    # initguess = [squid.Ic, squid.R, squid.Cap]
+    # popt = initguess
+    # popt, pcov = curve_fit(gta1, xaxis3, data, p0=initguess)
+    # # Update fittet values to Sliders and Environment
+    # squid.Ic = popt[0]
+    # squid.R = popt[1]
+    # squid.Cap = popt[2]
+    # sIc.set_val(popt[0]*1e6)
+    # sRsq.set_val(popt[1]*1e-3)
+    # sCap.set_val(popt[2]*1e15)
+
     # Obtain fitcurve
-    S11 = getfit(squid.Ic, squid.R, squid.Cap)
+    S11 = getfit()
     # Calculate and plot residual there
-    residual = c-S11
+    residual = data-S11
     plt.figure(4)
     plt.clf()
     plt.plot(xaxis3, residual)
     plt.draw()
-    print popt
+    # print popt
     print abs(np.mean((residual*residual)))*1e8
 
 sIc.on_changed(update)
