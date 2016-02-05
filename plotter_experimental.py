@@ -67,11 +67,9 @@ def get_sMatrix(b, elem, Zsq):
 
 def get_Zsq(f0, squid):
     flux = squid.lin
-    L = flux0 / (squid.Ic * 2.0 * pi * abs(cos(pi * flux / squid.flux0)))
-    Ysq = (1.0 / squid.R + 1.0 /
-           (1j * 2.0 * pi * f0 * L + 1j * 1e-90) +
-           1j * 2.0 * pi * f0 * squid.Cap)
-    return (1.0 / Ysq)
+    L = flux0/(squid.Ic*2.0*pi*abs(cos(pi*flux/squid.flux0)))
+    Ysq = (1.0/squid.R + 1j*2.0*pi*f0*squid.Cap - 1j/(2.0*pi*f0*L+1e-90))
+    return (1.0/Ysq)
 
 
 def get_SMresponse(f0, squid, elem):
@@ -241,8 +239,6 @@ def getfit():
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
     S11 = S11*10**(measdata.ATT / 20.0)
     S11 = addphase(S11, measdata.PHI)
-    # Interleave data to fit both simultanously
-    # numpy.vstack((S11.real,S11.imag)).reshape((-1,),order='F)
     c = np.empty(len(S11)*2, dtype='float64')
     c[0::2] = S11.real
     c[1::2] = S11.imag
@@ -261,6 +257,8 @@ def gta1(params, x, data):
     squid.R = params['R'].value
     squid.Cap = params['Cap'].value
     squid.Ic = params['Ic'].value
+    elem.Z1 = params['Z1'].value
+    elem.Z3 = params['Z3'].value
     fixPhi(False)
     return getfit() - data
 
@@ -273,47 +271,37 @@ def fitcurve(val0):
     data[0::2] = ydat.real
     data[1::2] = ydat.imag
     fixPhi(0)
-
     xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt*2))
     # Using standard curve_fit settings
 
     params = Parameters()
     params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6)
-    params.add('R', value=squid.R, min=0, max=1e5)
-    params.add('Cap', value=squid.Cap, min=0e-17, max=1e-13)
-
+    params.add('R', value=squid.R, min=1, max=1e5)
+    params.add('Cap', value=squid.Cap, min=1e-15, max=1e-13)
+    params.add('Z1', value=squid.Cap, min=25, max=100)
+    params.add('Z3', value=squid.Cap, min=25, max=100)
     result = minimize(gta1, params, args=(xaxis3, data))
-    report_fit(params)
-    # out = minimize(residual, params, args=(x, data, eps_data))
+    print report_fit(result)
 
-    squid.Ic = result.params.values['Ic']
-    squid.R = result.params.values['R']
-    squid.Cap = result.params.values['Cap']
-    sIc.set_val(result.params.values['Ic']*1e6)
-    sRsq.set_val(result.params.values['R']*1e-3)
-    sCap.set_val(result.params.values['Cap']*1e15)
+    squid.Ic = result.params['Ic'].value
+    squid.R = result.params['R'].value
+    squid.Cap = result.params['Cap'].value
+    elem.Z1 = result.params['Z1'].value
+    elem.Z3 = result.params['Z3'].value
+    sIc.set_val(result.params['Ic'].value*1e6)
+    sRsq.set_val(result.params['R'].value*1e-3)
+    sCap.set_val(result.params['Cap'].value*1e15)
+    sZ1.set_val(result.params['Z1'].value)
+    sZ3.set_val(result.params['Z3'].value)
+    fixPhi(True)
 
-    print result
-    # initguess = [squid.Ic, squid.R, squid.Cap]
-    # popt = initguess
-    # popt, pcov = curve_fit(gta1, xaxis3, data, p0=initguess)
-    # # Update fittet values to Sliders and Environment
-    # squid.Ic = popt[0]
-    # squid.R = popt[1]
-    # squid.Cap = popt[2]
-    # sIc.set_val(popt[0]*1e6)
-    # sRsq.set_val(popt[1]*1e-3)
-    # sCap.set_val(popt[2]*1e15)
-
-    # Obtain fitcurve
-    S11 = getfit()
     # Calculate and plot residual there
+    S11 = getfit()
     residual = data-S11
     plt.figure(4)
     plt.clf()
     plt.plot(xaxis3, residual)
     plt.draw()
-    # print popt
     print abs(np.mean((residual*residual)))*1e8
 
 sIc.on_changed(update)
