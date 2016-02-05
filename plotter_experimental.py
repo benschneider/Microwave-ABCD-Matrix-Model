@@ -52,7 +52,7 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
-squid.Lbw = 1e-20
+squid.Lwb = 1e-15
 squid.Lloop = 1e-90
 
 elem.update = True      # Set update to true
@@ -85,10 +85,9 @@ def get_Zsq(f0, squid):
     Then calulcates the Impedance (Cap, Freq, L)
     '''
     flux = squid.lin
-    L = (flux0 /
-         (squid.Ic * 2.0 * pi * abs(cos(pi * flux / squid.flux0))))
+    L = (flux0 / (squid.Ic * 2.0 * pi * abs(cos(pi * flux / squid.flux0))))
     Ysq = (1.0 / squid.R + 1j * 2.0 * pi * f0 * squid.Cap - 1j /
-           (2.0 * pi * f0 * L + squid.Lbw))
+           (2.0 * pi * f0 * (L + squid.Lwb)))
     return (1.0 / Ysq)
 
 
@@ -263,8 +262,8 @@ def gta1(params, x, data):
     squid.Cap = params['Cap'].value
     squid.Ic = params['Ic'].value
     elem.Z1 = params['Z1'].value
-    squid.Lbw = params['Lbw'].value
-    print 'Ic ', squid.Ic, 'Lbw ', squid.Lbw, 'Cap ', squid.Cap, 'Z1 ', elem.Z1
+    squid.Lwb = params['Lwb'].value
+    print 'Ic ', squid.Ic, 'Lwb ', squid.Lwb, 'Cap ', squid.Cap, 'Z1 ', elem.Z1
     # elem.Z3 = params['Z3'].value
     preFit(False)
     return getfit() - data
@@ -282,11 +281,11 @@ def fitcurve(val0):
     # Using standard curve_fit settings
 
     params = Parameters()
-    params.add('Lbw', value=squid.Lbw, min=1e-20, max=1e-10, vary=True)
-    params.add('R', value=squid.R, min=1, max=1e5, vary=False)
-    params.add('Cap', value=squid.Cap, min=1e-15, max=1e-13, vary=False)
+    params.add('Lwb', value=squid.Lwb, min=1e-20, max=1e-10, vary=True)
+    params.add('R', value=squid.R, min=1, max=1e5, vary=True)
+    params.add('Cap', value=squid.Cap, min=1e-15, max=1e-13, vary=True)
     params.add('Z1', value=squid.Cap, min=40, max=60, vary=False)
-    params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6, vary=False)
+    params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6, vary=True)
     params.add('Z3', value=squid.Cap, min=25, max=100)
     result = minimize(gta1, params, args=(xaxis3, data))
     print report_fit(result)
@@ -294,7 +293,7 @@ def fitcurve(val0):
     squid.Ic = result.params['Ic'].value
     squid.R = result.params['R'].value
     squid.Cap = result.params['Cap'].value
-    squid.Lbw = result.params['Lbw'].value
+    squid.Lwb = result.params['Lwb'].value
     elem.Z1 = result.params['Z1'].value
     # elem.Z3 = result.params['Z3'].value
     update2(0)
@@ -311,7 +310,7 @@ def fitcurve(val0):
     return
 
 
-def xyFind(val):
+def preFitButton(val):
     preFit(0)
     update2(0)
     return
@@ -376,7 +375,7 @@ sFreq.on_changed(update)
 # --- Buttons
 prFitxB = plt.axes([0.35, 0.025, 0.1, 0.04])
 button5 = plt.Button(prFitxB, 'PreFit', color=axcolor, hovercolor='0.975')
-button5.on_clicked(xyFind)
+button5.on_clicked(preFitButton)
 
 mXaxB = plt.axes([0.25, 0.025, 0.1, 0.04])
 button4 = plt.Button(mXaxB, 'MatchX', color=axcolor, hovercolor='0.975')
