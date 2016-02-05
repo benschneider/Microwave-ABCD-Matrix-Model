@@ -193,7 +193,7 @@ def update(val):
     measdata.ATT = sATT.val
     measdata.PHI = sPHI.val
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    c = getfit(xaxis, measdata.PHI, squid.Ic, squid.R, squid.Cap)
+    c = getfit(squid.Ic, squid.R, squid.Cap)
     S11 = c[1::2]*1j + c[0::2]
     plotfig2(xaxis, xaxis2, S11, ydat)
     plotfig5(xaxis, xaxis2, S11, ydat)
@@ -215,9 +215,9 @@ def matchXaxis(val0):
 
 def fixPhi(val0):
     # find difference in Phi values and correct em
-    update(val0)
+    # update(val0)
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
-    c = getfit(xaxis, measdata.PHI, squid.Ic, squid.R, squid.Cap)
+    c = getfit(squid.Ic, squid.R, squid.Cap)
     S11 = c[1::2]*1j + c[0::2]
     zerofluxidx = find_nearest(xaxis2, 0.0)
     t1 = np.unwrap(np.angle(ydat))
@@ -235,14 +235,13 @@ def addphase(Data, Phi):
     return temp1
 
 
-def getfit(xaxis, Phi, Ic, Rsq, Cap):
+def getfit(Ic, Rsq, Cap):
     squid.R = Rsq
     squid.Cap = Cap
     squid.Ic = Ic
-    measdata.PHI = Phi
     xaxis, xaxis2, S11, ydat = getModelData(squid, elem, measdata)
     S11 = S11*10**(measdata.ATT / 20.0)
-    S11 = addphase(S11, Phi)
+    S11 = addphase(S11, measdata.PHI)
     # Interleave data to fit both simultanously
     # numpy.vstack((S11.real,S11.imag)).reshape((-1,),order='F)
     c = np.empty(len(S11)*2, dtype='float64')
@@ -258,7 +257,7 @@ def fitcurve(val0):
     c = np.empty(len(ydat)*2, dtype='float64')
     c[0::2] = ydat.real
     c[1::2] = ydat.imag
-
+    fixPhi(0)
     xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt*2))
     # Using standard curve_fit settings
     initguess = [squid.Ic, squid.R, squid.Cap]
@@ -271,9 +270,8 @@ def fitcurve(val0):
     sIc.set_val(popt[0]*1e6)
     sRsq.set_val(popt[1]*1e-3)
     sCap.set_val(popt[2]*1e15)
-
     # Obtain fitcurve
-    S11 = getfit(xaxis3, squid.R, squid.Cap, squid.Ic)
+    S11 = getfit(squid.Ic, squid.R, squid.Cap)
     # Calculate and plot residual there
     residual = c-S11
     plt.figure(4)
