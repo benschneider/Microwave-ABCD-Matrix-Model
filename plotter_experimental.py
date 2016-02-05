@@ -193,9 +193,7 @@ def update(val):
 
 
 def update2(val):
-    Tstart = time()
-    # Tell update not to run on each slider change
-    elem.update = False
+    elem.update = False  # Do not update figure on changes
     sPHI.set_val(measdata.PHI)
     sATT.set_val(measdata.ATT)
     sIc.set_val(squid.Ic*1e6)
@@ -208,8 +206,6 @@ def update2(val):
     # sL1.set_val(elem.L1*1e1)
     # sL2.set_val(elem.L2)
     # sL3.set_val(elem.L3*1e3)
-    T = time()-Tstart
-    print "sliders are updated ", T
 
 
 def matchXaxis(val0):
@@ -268,6 +264,8 @@ def gta1(params, x, data):
     squid.Cap = params['Cap'].value
     squid.Ic = params['Ic'].value
     elem.Z1 = params['Z1'].value
+    squid.Lbw = params['Lbw'].value
+    print 'Ic ', squid.Ic, 'Lbw ', squid.Lbw, 'Cap ', squid.Cap, 'Z1 ', elem.Z1
     # elem.Z3 = params['Z3'].value
     preFit(False)
     return getfit() - data
