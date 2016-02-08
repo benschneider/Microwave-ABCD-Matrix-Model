@@ -30,16 +30,9 @@ measdata = get_hdf5data(filename)
 
 flux0 = 2.07e-15    # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
 
-squid = dim(name='Squid',
-            start=-1.5,
-            stop=0.5,
-            pt=201,
-            scale=flux0)
-elem = handler(name='mag/phase',
-               start=0,
-               stop=10,
-               pt=1)  # 8 pts for S 4x2 values
-squid.flux0 = 2.07e-15  # Tm^2; Flux quanta: flux0 =  h / (2*charging energy)
+squid = dim(name='Squid', start=-1.5, stop=0.5, pt=201, scale=flux0)
+elem = handler(name='mag/phase', start=0, stop=10, pt=1)
+squid.flux0 = 2.07e-15  # Tm^2; flux0=h/(2*charging energy)
 
 elem.Z0 = 50            # R; Input impedance
 elem.Z1 = 50            # R; Impedance of transmission piece 1
@@ -58,6 +51,9 @@ squid.f0 = 5e9
 
 elem.updateOnChange = True     # Update when slider value is changed
 elem.matchX = False
+
+elem.xmin = -0.65
+elem.xmax = -0.35
 
 
 def get_sMatrix(elem, squid):
@@ -110,7 +106,6 @@ def getModelData(elem, squid):
     is using the full ABCD Model
     Phase and Attenuation is added (outside the ABCD model)
     '''
-    squid.f0
     SMat = get_sMatrix(elem, squid)
     S11 = SMat[:, 0, 0]
     squid.xaxis = squid.lin / flux0
@@ -286,7 +281,8 @@ def gta1(params, x, data):
     print ('Ic:', squid.Ic, 'Wb:', squid.Wb, 'Cap:', squid.Cap)
     print ('Z1:', elem.Z1, 'Z2:', elem.Z2, 'Z3:', elem.Z3, 'L2:', elem.L2)
     preFit(False)
-    return (getfit() - data)
+    residual1 = (getfit() - data)
+    return residual1[elem.minidx:elem.maxidx]
 
 
 def fitcurve(val0):
@@ -304,7 +300,7 @@ def fitcurve(val0):
     params = Parameters()
     params.add('CapfF', value=squid.Cap*1e15, vary=True, min=30, max=80)
     params.add('IcuA', value=squid.Ic*1e6, vary=True, min=3.0, max=4.0)
-    params.add('WbpH', value=squid.Wb*1e12, vary=False, min=0, max=1000)
+    params.add('WbpH', value=squid.Wb*1e12, vary=True, min=0, max=1500)
     params.add('LooppH', value=squid.LOOP*1e12, vary=True, min=0.0, max=100)
     params.add('alpha', value=squid.ALP, vary=True, min=0.98, max=1.02)
     params.add('R', value=squid.R, vary=True, min=1, max=20e3)
@@ -313,8 +309,13 @@ def fitcurve(val0):
     params.add('Z3', value=elem.Z3, vary=True, min=40, max=60)
     params.add('L2', value=elem.L2, vary=False, min=0.00, max=0.09)
 
+    # Crop region to fit
+    elem.minidx = find_nearest(measdata.xaxis, elem.xmin)
+    elem.maxidx = find_nearest(measdata.xaxis, elem.xmax)
+
     # Do Fit
-    result = minimize(gta1, params, args=(xaxis3, data))
+    result = minimize(gta1, params,
+                      args=(measdata.xaxis[elem.minidx:elem.maxidx], data))
 
     # Present results of fitting
     print report_fit(result)
@@ -326,7 +327,7 @@ def fitcurve(val0):
     residual = data - S11
     plt.figure(4)
     plt.clf()
-    plt.plot(xaxis3, residual)
+    plt.plot(xaxis3, residual[elem.minidx:elem.maxidx])
     plt.axis('tight')
     plt.draw()
     print 'Avg-sqr Residuals', abs(np.mean((residual * residual))) * 1e8
@@ -368,6 +369,7 @@ def updateButton(val):
     update2(0, update=False)        # Update Sliders, elem.updateOnChange=False
     update(0)
 
+
 # --- Interface Buttons and Sliders ---
 # --- Sliders Start ---
 '''
@@ -392,7 +394,7 @@ axXPOS = plt.axes([0.25, 0.81, 0.50, 0.02], axisbg=axcolor)
 sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
 
 axWb = plt.axes([0.25, 0.49, 0.50, 0.02], axisbg=axcolor)
-sWb = plt.Slider(axWb, 'WireBond Ind. pH', 0, 2000, valinit=0.0)
+sWb = plt.Slider(axWb, 'WireBond Ind. pH', 0, 2000, valinit=900.0)
 axALP = plt.axes([0.25, 0.46, 0.50, 0.02], axisbg=axcolor)
 sALP = plt.Slider(axALP, 'Alpha', 0, 2, valinit=1)
 axLOOP = plt.axes([0.25, 0.43, 0.50, 0.02], axisbg=axcolor)
