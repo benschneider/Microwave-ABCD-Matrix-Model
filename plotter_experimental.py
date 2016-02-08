@@ -51,7 +51,7 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
-squid.Wb = 1e-30
+squid.Wb = 100e-12        # Aprox: Lw (nH) = 5.08x10-3 * L * (ln(4*L/D) - 1)
 squid.LOOP = 1e-30
 squid.ALP = 1.0
 squid.f0 = 5e9
@@ -187,6 +187,7 @@ def update(val, doPlot=True):
     squid.Ic = np.float64(sIc.val) * 1e-6
     squid.Cap = np.float64(sCap.val) * 1e-15
     squid.R = np.float64(sRsq.val) * 1e3
+    squid.Wb = np.float64(sWb.val) * 1e-12
     elem.Z1 = np.float64(sZ1.val)
     elem.Z2 = np.float64(sZ2.val)
     elem.Z3 = np.float64(sZ3.val)
@@ -222,6 +223,7 @@ def update2(val, update=True):
     sIc.set_val(squid.Ic * 1e6)
     sRsq.set_val(squid.R * 1e-3)
     sCap.set_val(squid.Cap * 1e15)
+    sWb.set_val(squid.Wb*1e12)
     sZ1.set_val(elem.Z1)
     sZ2.set_val(elem.Z2)
     sL2.set_val(elem.L2*1e3)
@@ -302,16 +304,16 @@ def fitcurve(val0):
 
     # Define fitting parameters
     params = Parameters()
-    params.add('Wb', value=squid.Wb, vary=False, min=1e-50, max=1e-10)
+    params.add('CapfF', value=squid.Cap*1e15, vary=True, min=30, max=80)
+    params.add('IcuA', value=squid.Ic*1e6, vary=True, min=3.0, max=4.0)
+    params.add('WbpH', value=squid.Wb*1e12, vary=False, min=0, max=1000)
+    params.add('LooppH', value=squid.LOOP*1e12, vary=True, min=0.0, max=100)
+    params.add('alpha', value=squid.ALP, vary=True, min=0.98, max=1.02)
     params.add('R', value=squid.R, vary=True, min=1, max=20e3)
-    params.add('Cap', value=squid.Cap, vary=True, min=30e-15, max=80e-15)
-    params.add('Ic', value=squid.Ic, vary=True, min=3.5e-6, max=3.9e-6)
-    params.add('Z1', value=elem.Z1, vary=False, min=45, max=55)
-    params.add('Z2', value=elem.Z2, vary=True, min=45, max=55)
-    params.add('Z3', value=elem.Z3, vary=False, min=45, max=55)
-    params.add('L2', value=elem.L2, vary=True, min=0.00, max=0.09)
-    params.add('alpha', value=squid.ALP, vary=True, min=0, max=2)
-    params.add('Loop', value=squid.LOOP, vary=True, min=0, max=500e-9)
+    params.add('Z1', value=elem.Z1, vary=True, min=40, max=60)
+    params.add('Z2', value=elem.Z2, vary=True, min=40, max=60)
+    params.add('Z3', value=elem.Z3, vary=True, min=40, max=60)
+    params.add('L2', value=elem.L2, vary=False, min=0.00, max=0.09)
 
     # Do Fit
     result = minimize(gta1, params, args=(xaxis3, data))
@@ -343,16 +345,16 @@ def paramsToMem(params1):
         obj.varname = var
     Maby this is easier to do in a Dict. format ?
     '''
-    squid.Ic = params1['Ic'].value
+    squid.Ic = params1['IcuA'].value*12-6
+    squid.Cap = params1['CapfF'].value*1e-15
+    squid.Wb = params1['WbpH'].value*1e-12
+    squid.LOOP = params1['LooppH'].value*1e-12
+    squid.ALP = params1['alpha'].value
     squid.R = params1['R'].value
-    squid.Cap = params1['Cap'].value
-    squid.Lwb = params1['Wb'].value
     elem.Z1 = params1['Z1'].value
     elem.Z2 = params1['Z2'].value
     elem.Z3 = params1['Z3'].value
     elem.L2 = params1['L2'].value
-    squid.ALP = params1['alpha'].value
-    squid.LOOP = params1['Loop'].value
 
 
 def preFitButton(val):
@@ -391,8 +393,8 @@ sXSC = plt.Slider(axXSC, 'x-scale', 0.9, 1.1, valinit=1.04187, valfmt='%1.5f')
 axXPOS = plt.axes([0.25, 0.81, 0.50, 0.02], axisbg=axcolor)
 sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
 
-axWB = plt.axes([0.25, 0.49, 0.50, 0.02], axisbg=axcolor)
-sWB = plt.Slider(axWB, 'WireBond Ind. nH', 0, 500, valinit=0.0)
+axWb = plt.axes([0.25, 0.49, 0.50, 0.02], axisbg=axcolor)
+sWb = plt.Slider(axWb, 'WireBond Ind. pH', 0, 2000, valinit=0.0)
 axALP = plt.axes([0.25, 0.46, 0.50, 0.02], axisbg=axcolor)
 sALP = plt.Slider(axALP, 'Alpha', 0, 2, valinit=1)
 axLOOP = plt.axes([0.25, 0.43, 0.50, 0.02], axisbg=axcolor)
@@ -400,21 +402,21 @@ sLOOP = plt.Slider(axLOOP, 'Loop Ind. nH', 0, 500, valinit=0.0)
 axZ4 = plt.axes([0.25, 0.40, 0.50, 0.02], axisbg=axcolor)
 sZ4 = plt.Slider(axZ4, 'Shrt-> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
 axZ3 = plt.axes([0.25, 0.37, 0.50, 0.02], axisbg=axcolor)
-sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 45.0, 55.0, valinit=50)
+sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 40.0, 60.0, valinit=50)
 axL3 = plt.axes([0.25, 0.34, 0.50, 0.02], axisbg=axcolor)
 sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.0)
 axZ2 = plt.axes([0.25, 0.31, 0.50, 0.02], axisbg=axcolor)
-sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 45.0, 55.0, valinit=50)
+sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 40.0, 60.0, valinit=50)
 axL2 = plt.axes([0.25, 0.28, 0.50, 0.02], axisbg=axcolor)
-sL2 = plt.Slider(axL2, 'L2 (mm)', 0.0, 80, valinit=40, valfmt='%1.5f')
+sL2 = plt.Slider(axL2, 'L2 (mm)', 0.0, 80, valinit=0.0, valfmt='%1.5f')
 axZ1 = plt.axes([0.25, 0.25, 0.50, 0.02], axisbg=axcolor)
-sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 45.0, 55.0, valinit=50)
+sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 40.0, 60.0, valinit=50)
 axL1 = plt.axes([0.25, 0.22, 0.50, 0.02], axisbg=axcolor)
 sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167, valinit=0.0, valfmt='%1.10f')
 axRsq = plt.axes([0.25, 0.19, 0.50, 0.02], axisbg=axcolor)
 sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=0.75)
 axCap = plt.axes([0.25, 0.16, 0.50, 0.02], axisbg=axcolor)
-sCap = plt.Slider(axCap, 'Cap (fF)', 10, 400.0, valinit=40)
+sCap = plt.Slider(axCap, 'Cap (fF)', 0, 400.0, valinit=60)
 axIc = plt.axes([0.25, 0.13, 0.50, 0.02], axisbg=axcolor)
 sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.4)
 axfreq = plt.axes([0.25, 0.1, 0.50, 0.02], axisbg=axcolor)
@@ -439,6 +441,7 @@ sPHI.on_changed(updateButton)
 sFreq.on_changed(updateButton)
 sLOOP.on_changed(updateButton)
 sALP.on_changed(updateButton)
+sWb.on_changed(updateButton)
 
 # --- Buttons
 prFitxB = plt.axes([0.35, 0.025, 0.1, 0.04])
