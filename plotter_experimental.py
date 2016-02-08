@@ -283,10 +283,8 @@ def getfit():
 
 def gta1(params, x, data):
     paramsToMem(params)
-    print ('Ic:', squid.Ic, 'Wb:', squid.Wb,
-           'Cap:', squid.Cap, 'Z1:', elem.Z1,
-           'Z2:', elem.Z2, 'Z3:', elem.Z3,
-           'L2:', elem.L2)
+    print ('Ic:', squid.Ic, 'Wb:', squid.Wb, 'Cap:', squid.Cap)
+    print ('Z1:', elem.Z1, 'Z2:', elem.Z2, 'Z3:', elem.Z3, 'L2:', elem.L2)
     preFit(False)
     return (getfit() - data)
 
@@ -345,7 +343,7 @@ def paramsToMem(params1):
         obj.varname = var
     Maby this is easier to do in a Dict. format ?
     '''
-    squid.Ic = params1['IcuA'].value*12-6
+    squid.Ic = params1['IcuA'].value*1e-6
     squid.Cap = params1['CapfF'].value*1e-15
     squid.Wb = params1['WbpH'].value*1e-12
     squid.LOOP = params1['LooppH'].value*1e-12
