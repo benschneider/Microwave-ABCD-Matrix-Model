@@ -7,17 +7,20 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2  each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
+from time import time
+ts = time()
 from numpy import pi, cos, abs, log10
 import numpy as np
 from parsers import dim, get_hdf5data
 from ABCD import tline, sres, shunt, handler  # , terminator
 import matplotlib
 matplotlib.use('Qt4Agg')  # macosx, Qt4Agg, WX
+# matplotlib.use('macosx')
 # from scipy.optimize import curve_fit  # , leastsq
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 from lmfit import minimize, Parameters, report_fit  # , Parameter
 import matplotlib.pyplot as plt
-# matplotlib.use('macosx')
+print time()-ts
 
 plt.ion()
 
@@ -45,13 +48,14 @@ elem.Z1 = 50            # R; Impedance of transmission piece 1
 elem.Z2 = 50            # R; Impedance of Coplanar Waveguide
 elem.Z3 = 50
 elem.L1 = 0.44
-elem.L2 = 900.0e-6
+elem.L2 = 0.04
 elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
 squid.Lwb = 1e-30
-squid.Loop = 1e-30
+squid.LOOP = 1e-30
+squid.ALP = 0.9
 
 elem.updateOnChange = True     # Update when slider value is changed
 elem.matchX = False
@@ -66,10 +70,10 @@ def get_sMatrix(b, elem, Zsq):
     Assembly is done for each flux point and change in Zsq
     '''
     SM = np.zeros((len(Zsq), 2, 2)) * 1j  # complex matrix
-    M1 = (tline(elem.Z1, b, elem.L1) *
-          tline(elem.Z2, b, elem.L2) *
-          tline(elem.Z3, b, elem.L3))  # transmission lines
-    # M1 = tline(elem.Z1, b, elem.L1)
+    # M1 = (tline(elem.Z1, b, elem.L1) *
+    #       tline(elem.Z2, b, elem.L2) *
+    #       tline(elem.Z3, b, elem.L3))  # transmission lines
+    M1 = tline(elem.Z1, b, elem.L1) * tline(elem.Z2, b, elem.L2)
     for ii, Zsq1 in enumerate(Zsq):
         M2 = sres(Zsq1) * shunt(elem.Z4)
         M4 = M1 * M2
@@ -88,11 +92,15 @@ def get_Zsq(f0, squid):
     # L = (flux0 / (2.0*pi*squid.Ic*abs(cos(pi*flux/squid.flux0))))
     # Ysq = (1.0/squid.R + 1j*omega0*squid.Cap - 1j/(omega0*(L + 1e-20)))
     # Half a junction > 0.5 x Ic
-    L1 = (flux0 / (pi*squid.Ic*abs(cos(pi*flux/squid.flux0))))
-    L2 = (flux0 / (pi*squid.Ic*abs(cos(pi*flux/squid.flux0))))
+    # Alpha : Uneven junctions have an alpha other than 1.0
+    squid.Ic2 = squid.Ic/(squid.ALP+1)
+    squid.Ic1 = squid.ALP*squid.Ic2
+    print squid.Ic1, squid.Ic2
+    L1 = (flux0 / (pi*squid.Ic1*abs(cos(pi*flux/squid.flux0))))
+    L2 = (flux0 / (pi*squid.Ic2*abs(cos(pi*flux/squid.flux0))))
     Ysq1 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L1 + 1e-20)))
     Ysq2 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L2 + 1e-20)))
-    Ysq = (Ysq1 + 1.0/(1.0/Ysq2 + 1j*(omega0*squid.Loop)))
+    Ysq = (Ysq1 + 1.0/(1.0/Ysq2 + 1j*(omega0*squid.LOOP)))
     return (1.0 / Ysq)
 
 
@@ -134,7 +142,6 @@ def plotfig2(xaxis, xaxis2, S11, ydat):
     g1.plot(xaxis, abs(S11))
     g1.plot(xaxis2, abs(ydat))
     g1.axis('tight')
-    g1.hold(False)
     g2 = fig2.add_subplot(2, 1, 2, sharex=g1)
     g2.hold(True)
     g2.set_ylabel("Phase rad.", fontsize=12)
@@ -142,7 +149,6 @@ def plotfig2(xaxis, xaxis2, S11, ydat):
     g2.plot(xaxis, np.unwrap(np.angle(S11), discont=pi))
     g2.plot(xaxis2, np.unwrap(np.angle(ydat), discont=pi))
     g2.axis('tight')
-    g2.hold(False)
     plt.draw()
     return
 
@@ -156,7 +162,6 @@ def plotfig5(xaxis, xaxis2, S11, ydat):
     g1.plot(xaxis, S11.real)
     g1.plot(xaxis2, ydat.real)
     g1.axis('tight')
-    g1.hold(False)
     g2 = fig5.add_subplot(2, 1, 2)
     g2.hold(True)
     g2.set_ylabel("Imag", fontsize=12)
@@ -164,7 +169,6 @@ def plotfig5(xaxis, xaxis2, S11, ydat):
     g2.plot(xaxis, S11.imag)
     g2.plot(xaxis2, ydat.imag)
     g2.axis('tight')
-    g2.hold(False)
     plt.draw()
     return
 
@@ -196,16 +200,18 @@ def update(val, doPlot=True):
     squid.Cap = np.float64(sCap.val) * 1e-15
     squid.R = np.float64(sRsq.val) * 1e3
     elem.Z1 = np.float64(sZ1.val)
-    elem.L1 = np.float64(sL1.val) * 1e-1
     elem.Z2 = np.float64(sZ2.val)
-    elem.L2 = np.float64(sL2.val)
     elem.Z3 = np.float64(sZ3.val)
+    elem.L1 = np.float64(sL1.val) * 1e-1
+    elem.L2 = np.float64(sL2.val) * 1e-3
     elem.L3 = np.float64(sL3.val) * 1e-3
     elem.Z4 = np.float64(sZ4.val)
     measdata.XSC = np.float64(sXSC.val)
     measdata.XPOS = np.float64(sXPOS.val)
     measdata.ATT = np.float64(10 ** (sATT.val / 20))
     measdata.PHI = np.float64(sPHI.val)
+    squid.ALP = np.float64(sALP.val)
+    squid.LOOP = np.float64(sLOOP.val * 1e-9)
     getModelData()
     if doPlot is True:
         xaxis = squid.xaxis
@@ -230,6 +236,9 @@ def update2(val, update=True):
     sCap.set_val(squid.Cap * 1e15)
     sZ1.set_val(elem.Z1)
     sZ2.set_val(elem.Z2)
+    sL2.set_val(elem.L2*1e3)
+    sLOOP.set_val(squid.LOOP*1e9)
+    sALP.set_val(squid.ALP)
     if update is True:
         elem.updateOnChange = True
     sZ3.set_val(elem.Z3)
@@ -283,17 +292,13 @@ def getfit():
 
 
 def gta1(params, x, data):
-    squid.R = params['R'].value
-    squid.Cap = params['Cap'].value
-    squid.Ic = params['Ic'].value
-    elem.Z1 = params['Z1'].value
-    squid.Lwb = params['Lwb'].value
-    elem.Z3 = params['Z3'].value
-    print ('Ic:', squid.Ic, 'Lwb:', squid.Lwb,
+    paramsToMem(params)
+    print ('Ic:', squid.Ic,  # 'Lwb:', squid.Lwb,
            'Cap:', squid.Cap, 'Z1:', elem.Z1,
-           'Z3:', elem.Z3)
+           'Z2:', elem.Z2, 'Z3:', elem.Z3,
+           'L2:', elem.L2)
     preFit(False)
-    return getfit() - data
+    return (getfit() - data)
 
 
 def fitcurve(val0):
@@ -307,25 +312,27 @@ def fitcurve(val0):
     xaxis3 = np.linspace(squid.start, squid.stop, (squid.pt * 2))
     # Using standard curve_fit settings
 
+    # Define fitting parameters
     params = Parameters()
-    params.add('Lwb', value=squid.Lwb, min=1e-50, max=1e-10, vary=False)
-    params.add('R', value=squid.R, min=1, max=1e5, vary=True)
-    params.add('Cap', value=squid.Cap, min=1e-15, max=1e-13, vary=False)
-    params.add('Z1', value=elem.Z1, min=40, max=60, vary=True)
-    params.add('Ic', value=squid.Ic, min=2.5e-6, max=4.5e-6, vary=True)
-    params.add('Z3', value=elem.Z3, min=25, max=100, vary=False)
-    result = minimize(gta1, params, args=(xaxis3, data))
-    print report_fit(result)
+    # params.add('Lwb', value=squid.Lwb, vary=False, min=1e-50, max=1e-10)
+    params.add('R', value=squid.R, vary=True, min=1, max=20e3)
+    params.add('Cap', value=squid.Cap, vary=True, min=30e-15, max=80e-15)
+    params.add('Ic', value=squid.Ic, vary=True, min=3.5e-6, max=3.9e-6)
+    params.add('Z1', value=elem.Z1, vary=False, min=45, max=55)
+    params.add('Z2', value=elem.Z2, vary=True, min=45, max=55)
+    params.add('Z3', value=elem.Z3, vary=False, min=45, max=55)
+    params.add('L2', value=elem.L2, vary=False, min=0.01, max=0.09)
+    params.add('alpha', value=squid.ALP, vary=True, min=0.5, max=1.5)
+    params.add('Loop', value=squid.LOOP, vary=False, min=0, max=1000e-9)
 
-    squid.Ic = result.params['Ic'].value
-    squid.R = result.params['R'].value
-    squid.Cap = result.params['Cap'].value
-    squid.Lwb = result.params['Lwb'].value
-    elem.Z1 = result.params['Z1'].value
-    elem.Z3 = result.params['Z3'].value
+    # Do Fit
+    result = minimize(gta1, params, args=(xaxis3, data))
+
+    # Present results of fitting
+    print report_fit(result)
+    paramsToMem(results.params)
     update2(0)
     preFit(True)
-
     # Calculate and plot residual there
     S11 = getfit()
     residual = data - S11
@@ -334,8 +341,22 @@ def fitcurve(val0):
     plt.plot(xaxis3, residual)
     plt.axis('tight')
     plt.draw()
-    print abs(np.mean((residual * residual))) * 1e8
+    print 'Avg-sqr Residuals', abs(np.mean((residual * residual))) * 1e8
     return
+
+
+
+def paramsToMem(params1):
+    squid.Ic = params1['Ic'].value
+    squid.R = params1['R'].value
+    squid.Cap = params1['Cap'].value
+    # squid.Lwb = params1['Lwb'].value
+    elem.Z1 = params1['Z1'].value
+    elem.Z2 = params1['Z2'].value
+    elem.Z3 = params1['Z3'].value
+    elem.L2 = params1['L2'].value
+    squid.ALP = params1['alpha'].value
+    squid.LOOP = params1['Loop'].value
 
 
 def preFitButton(val):
@@ -344,49 +365,58 @@ def preFitButton(val):
 
 
 def updateButton(val):
+    t0 = time()
     if elem.updateOnChange is False:
         return
     update(val, doPlot=False)       # write sliders to mem
     preFit(0)                       # find new Phase & Att values
     update2(0, update=False)        # Update Sliders, elem.updateOnChange=False
+    t3 = time()
     update(0)
+    print "update:", (time()-t3), 'TimeUpdate', (time()-t0)
 
 # --- Interface Buttons and Sliders ---
 # --- Sliders Start ---
 fig3 = plt.figure(3)
 fig3.clear()
 axcolor = 'lightgoldenrodyellow'
-axATT = plt.axes([0.25, 0.80, 0.50, 0.03], axisbg=axcolor)
+axATT = plt.axes([0.25, 0.90, 0.50, 0.02], axisbg=axcolor)
 sATT = plt.Slider(axATT, 'Attenuation dBm', -90, -20.0,
                   valinit=-51.44, valfmt='%1.5f')
-axPHI = plt.axes([0.25, 0.85, 0.50, 0.03], axisbg=axcolor)
+axPHI = plt.axes([0.25, 0.87, 0.50, 0.02], axisbg=axcolor)
 sPHI = plt.Slider(axPHI, 'Phase offset', -np.pi, np.pi, valinit=0)
-axXSC = plt.axes([0.25, 0.75, 0.50, 0.03], axisbg=axcolor)
+axXSC = plt.axes([0.25, 0.84, 0.50, 0.02], axisbg=axcolor)
 sXSC = plt.Slider(axXSC, 'x-scale', 0.9, 1.1, valinit=1.04187, valfmt='%1.5f')
-axXPOS = plt.axes([0.25, 0.70, 0.50, 0.03], axisbg=axcolor)
+axXPOS = plt.axes([0.25, 0.81, 0.50, 0.02], axisbg=axcolor)
 sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
-axZ4 = plt.axes([0.25, 0.60, 0.50, 0.03], axisbg=axcolor)
+
+axALP = plt.axes([0.25, 0.46, 0.50, 0.02], axisbg=axcolor)
+sALP = plt.Slider(axALP, 'Alpha', 0.1, 2, valinit=1)
+axLOOP = plt.axes([0.25, 0.43, 0.50, 0.02], axisbg=axcolor)
+sLOOP = plt.Slider(axLOOP, 'Loop Inductance nH', 0, 1000, valinit=0.0)
+
+axZ4 = plt.axes([0.25, 0.40, 0.50, 0.02], axisbg=axcolor)
 sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
-axZ3 = plt.axes([0.25, 0.50, 0.50, 0.03], axisbg=axcolor)
+axZ3 = plt.axes([0.25, 0.37, 0.50, 0.02], axisbg=axcolor)
 sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 400.0, valinit=50)
-axL3 = plt.axes([0.25, 0.55, 0.50, 0.03], axisbg=axcolor)
+axL3 = plt.axes([0.25, 0.34, 0.50, 0.02], axisbg=axcolor)
 sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.9)
-axZ2 = plt.axes([0.25, 0.40, 0.50, 0.03], axisbg=axcolor)
+axZ2 = plt.axes([0.25, 0.31, 0.50, 0.02], axisbg=axcolor)
 sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 400.0, valinit=50)
-axL2 = plt.axes([0.25, 0.45, 0.50, 0.03], axisbg=axcolor)
-sL2 = plt.Slider(axL2, 'L2 (m)', 0.0, 1.0, valinit=0.3)
-axZ1 = plt.axes([0.25, 0.30, 0.50, 0.03], axisbg=axcolor)
+axL2 = plt.axes([0.25, 0.28, 0.50, 0.02], axisbg=axcolor)
+sL2 = plt.Slider(axL2, 'L2 (mm)', 10, 90, valinit=40, valfmt='%1.5f')
+axZ1 = plt.axes([0.25, 0.25, 0.50, 0.02], axisbg=axcolor)
 sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 900.0, valinit=50)
-axL1 = plt.axes([0.25, 0.35, 0.50, 0.03], axisbg=axcolor)
+axL1 = plt.axes([0.25, 0.22, 0.50, 0.02], axisbg=axcolor)
 sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167,
                  valinit=0.011625, valfmt='%1.10f')
-axRsq = plt.axes([0.25, 0.25, 0.50, 0.03], axisbg=axcolor)
+axRsq = plt.axes([0.25, 0.19, 0.50, 0.02], axisbg=axcolor)
 sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=0.75)
-axCap = plt.axes([0.25, 0.20, 0.50, 0.03], axisbg=axcolor)
+axCap = plt.axes([0.25, 0.16, 0.50, 0.02], axisbg=axcolor)
 sCap = plt.Slider(axCap, 'Cap (fF)', 0.01, 500.0, valinit=40)
-axIc = plt.axes([0.25, 0.15, 0.50, 0.03], axisbg=axcolor)
+axIc = plt.axes([0.25, 0.13, 0.50, 0.02], axisbg=axcolor)
 sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.4)
-axfreq = plt.axes([0.25, 0.1, 0.50, 0.03], axisbg=axcolor)
+axfreq = plt.axes([0.25, 0.1, 0.50, 0.02], axisbg=axcolor)
 sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0] / 1e9,
                    measdata.freq[-1] / 1e9, valinit=measdata.freq[0] / 1e9)
 
@@ -406,6 +436,8 @@ sXSC.on_changed(updateButton)
 sATT.on_changed(updateButton)
 sPHI.on_changed(updateButton)
 sFreq.on_changed(updateButton)
+sLOOP.on_changed(updateButton)
+sALP.on_changed(updateButton)
 
 # --- Buttons
 prFitxB = plt.axes([0.35, 0.025, 0.1, 0.04])
@@ -426,6 +458,7 @@ button2.on_clicked(update2)
 fig3.show()
 # --- Interface End
 
-update(0)
+update(0, doPlot=False)
 matchXaxis(0)
-update(0)
+update(0, doPlot=False)
+preFitButton(0)
