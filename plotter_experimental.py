@@ -91,7 +91,7 @@ def get_Zsq(squid):
     # BC; alp = 0: Ic1=Ic, alp=2: Ic2 = Ic
     squid.Ic1 = squid.Ic*(1.0-squid.ALP/2.0)
     squid.Ic2 = squid.Ic - squid.Ic1
-    print 'Ic1:', squid.Ic1, 'Ic2:', squid.Ic2
+    # print 'Ic1:', squid.Ic1, 'Ic2:', squid.Ic2
     L1 = (flux0 / (pi*squid.Ic1*abs(cos(pi*flux/squid.flux0))))
     L2 = (flux0 / (pi*squid.Ic2*abs(cos(pi*flux/squid.flux0))))
     Ysq1 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L1 + 1e-90)))
@@ -278,11 +278,11 @@ def getfit():
 
 def gta1(params, x, data):
     paramsToMem(params)
-    print ('Ic:', squid.Ic, 'Wb:', squid.Wb, 'Cap:', squid.Cap)
-    print ('Z1:', elem.Z1, 'Z2:', elem.Z2, 'Z3:', elem.Z3, 'L2:', elem.L2)
+    print ('Ic', squid.Ic, 'Wb', squid.Wb, 'Cap', squid.Cap, 'Alp', squid.ALP)
+    print ('Z1', elem.Z1, 'Z2', elem.Z2, 'Z3', elem.Z3, 'L2', elem.L2)
     preFit(False)
     residual1 = (getfit() - data)
-    return residual1[elem.minidx:elem.maxidx]
+    return residual1[elem.midx:elem.madx]
 
 
 def fitcurve(val0):
@@ -310,12 +310,11 @@ def fitcurve(val0):
     params.add('L2', value=elem.L2, vary=False, min=0.00, max=0.09)
 
     # Crop region to fit
-    elem.minidx = find_nearest(measdata.xaxis, elem.xmin)
-    elem.maxidx = find_nearest(measdata.xaxis, elem.xmax)
+    elem.midx = find_nearest(xaxis3, elem.xmin)
+    elem.madx = find_nearest(xaxis3, elem.xmax)
 
     # Do Fit
-    result = minimize(gta1, params,
-                      args=(measdata.xaxis[elem.minidx:elem.maxidx], data))
+    result = minimize(gta1, params, args=(xaxis3[elem.midx:elem.madx], data))
 
     # Present results of fitting
     print report_fit(result)
@@ -327,7 +326,7 @@ def fitcurve(val0):
     residual = data - S11
     plt.figure(4)
     plt.clf()
-    plt.plot(xaxis3, residual[elem.minidx:elem.maxidx])
+    plt.plot(xaxis3[elem.midx:elem.madx], residual[elem.midx:elem.madx])
     plt.axis('tight')
     plt.draw()
     print 'Avg-sqr Residuals', abs(np.mean((residual * residual))) * 1e8
