@@ -7,8 +7,7 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2  each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
-from time import time
-ts = time()
+# from time import time
 from numpy import pi, cos, abs, log10
 import numpy as np
 from parsers import dim, get_hdf5data
@@ -20,7 +19,6 @@ matplotlib.use('Qt4Agg')  # macosx, Qt4Agg, WX
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 from lmfit import minimize, Parameters, report_fit  # , Parameter
 import matplotlib.pyplot as plt
-print time()-ts
 
 plt.ion()
 
@@ -56,12 +54,13 @@ elem.v = 2.0e8
 squid.Lwb = 1e-30
 squid.LOOP = 1e-30
 squid.ALP = 0.9
+squid.f0 = 5e9
 
 elem.updateOnChange = True     # Update when slider value is changed
 elem.matchX = False
 
 
-def get_sMatrix(b, elem, Zsq):
+def get_sMatrix(elem, squid):
     '''
     This is where the assembly of the model happens using ABCD Matrixes
     SM represents the SQUID response
@@ -69,11 +68,13 @@ def get_sMatrix(b, elem, Zsq):
     Zsq is the impedance of the SQUID (flux) (vector)
     Assembly is done for each flux point and change in Zsq
     '''
+    Zsq = get_Zsq(squid)
+    b = 2.0 * pi * squid.f0 / 2.0e-8
     SM = np.zeros((len(Zsq), 2, 2)) * 1j  # complex matrix
-    # M1 = (tline(elem.Z1, b, elem.L1) *
-    #       tline(elem.Z2, b, elem.L2) *
-    #       tline(elem.Z3, b, elem.L3))  # transmission lines
-    M1 = tline(elem.Z1, b, elem.L1) * tline(elem.Z2, b, elem.L2)
+    M1 = (tline(elem.Z1, b, elem.L1) *
+          tline(elem.Z2, b, elem.L2) *
+          tline(elem.Z3, b, elem.L3))  # transmission lines
+    # M1 = tline(elem.Z1, b, elem.L1) * tline(elem.Z2, b, elem.L2)
     for ii, Zsq1 in enumerate(Zsq):
         M2 = sres(Zsq1) * shunt(elem.Z4)
         M4 = M1 * M2
@@ -81,49 +82,37 @@ def get_sMatrix(b, elem, Zsq):
     return SM
 
 
-def get_Zsq(f0, squid):
+def get_Zsq(squid):
     '''
     Calculates the Impedance of the SQUID.
     First calculates the inductance L  (flux)
     Then calulcates the Impedance (Cap, Freq, L)
     '''
-    omega0 = 2.0 * pi * f0
+    omega0 = 2.0 * pi * squid.f0
     flux = squid.lin
     # L = (flux0 / (2.0*pi*squid.Ic*abs(cos(pi*flux/squid.flux0))))
     # Ysq = (1.0/squid.R + 1j*omega0*squid.Cap - 1j/(omega0*(L + 1e-20)))
-    # Half a junction > 0.5 x Ic
     # Alpha : Uneven junctions have an alpha other than 1.0
-    squid.Ic2 = squid.Ic/(squid.ALP+1)
-    squid.Ic1 = squid.ALP*squid.Ic2
-    print squid.Ic1, squid.Ic2
+    # BC; alp = 0: Ic1=Ic, alp=2: Ic2 = Ic
+    squid.Ic1 = squid.Ic*(1.0-squid.ALP/2.0)
+    squid.Ic2 = squid.Ic - squid.Ic1
+    print 'Ic1:', squid.Ic1, 'Ic2:', squid.Ic2
     L1 = (flux0 / (pi*squid.Ic1*abs(cos(pi*flux/squid.flux0))))
     L2 = (flux0 / (pi*squid.Ic2*abs(cos(pi*flux/squid.flux0))))
-    Ysq1 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L1 + 1e-20)))
-    Ysq2 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L2 + 1e-20)))
+    Ysq1 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L1 + 1e-90)))
+    Ysq2 = (0.5/squid.R + 0.5j*omega0*squid.Cap - 1j/(omega0*(L2 + 1e-90)))
     Ysq = (Ysq1 + 1.0/(1.0/Ysq2 + 1j*(omega0*squid.LOOP)))
-    return (1.0 / Ysq)
+    return (1.0j*omega0*squid.Lwb + 1.0 / Ysq)
 
 
-def get_SMresponse(f0, squid, elem):
-    '''
-    b is a wavenumber used for the Transmission line sections
-    2e8 is ~ speed of light in a transmission line
-    Zsq vector is the Squid impedance (flux)
-    get_sMatrix assembles the individual Transmission sections
-    '''
-    b = 2.0 * pi * f0 / 2.0e-8
-    Zsq = get_Zsq(f0, squid)
-    return get_sMatrix(b, elem, Zsq)
-
-
-def getModelData():
+def getModelData(elem, squid):
     '''
     Get S11 including Attenuation and Phase
     is using the full ABCD Model
     Phase and Attenuation is added (outside the ABCD model)
     '''
-    f0 = sFreq.val * 1e9
-    SMat = get_SMresponse(f0, squid, elem)
+    squid.f0
+    SMat = get_sMatrix(elem, squid)
     S11 = SMat[:, 0, 0]
     squid.xaxis = squid.lin / flux0
     measdata.xaxis = np.linspace(- 1 + measdata.XPOS, 1 + measdata.XPOS,
@@ -193,8 +182,8 @@ def update(val, doPlot=True):
         # This is done because all Sliders are set to autoupdate on change
         # Thus they will also call this when The sliders are updated.
         return
-    f0 = sFreq.val * 1e9
-    measdata.findex = find_nearest(measdata.freq, f0)
+    squid.f0 = sFreq.val * 1e9
+    measdata.findex = find_nearest(measdata.freq, squid.f0)
     measdata.ydat = measdata.D1complex[:, measdata.findex]
     squid.Ic = np.float64(sIc.val) * 1e-6
     squid.Cap = np.float64(sCap.val) * 1e-15
@@ -212,7 +201,7 @@ def update(val, doPlot=True):
     measdata.PHI = np.float64(sPHI.val)
     squid.ALP = np.float64(sALP.val)
     squid.LOOP = np.float64(sLOOP.val * 1e-9)
-    getModelData()
+    getModelData(elem, squid)
     if doPlot is True:
         xaxis = squid.xaxis
         xaxis2 = measdata.xaxis
@@ -258,7 +247,7 @@ def matchXaxis(val0):
 def preFit(val0):
     if elem.matchX is False:
         return
-    getModelData()
+    getModelData(elem, squid)
     zerofluxidx = find_nearest(measdata.xaxis, 0.0)
     t2 = np.abs(measdata.ydat) / np.abs(elem.S11)
     t3 = (np.unwrap(np.angle(measdata.ydat), discont=pi) -
@@ -276,7 +265,7 @@ def addphase(Data, Phi):
 
 
 def getfit():
-    getModelData()
+    getModelData(elem, squid)
     c = np.empty(len(elem.S11) * 2, dtype='float64')
     c[0::2] = elem.S11.real
     c[1::2] = elem.S11.imag
@@ -321,16 +310,16 @@ def fitcurve(val0):
     params.add('Z1', value=elem.Z1, vary=False, min=45, max=55)
     params.add('Z2', value=elem.Z2, vary=True, min=45, max=55)
     params.add('Z3', value=elem.Z3, vary=False, min=45, max=55)
-    params.add('L2', value=elem.L2, vary=False, min=0.01, max=0.09)
-    params.add('alpha', value=squid.ALP, vary=True, min=0.5, max=1.5)
-    params.add('Loop', value=squid.LOOP, vary=False, min=0, max=1000e-9)
+    params.add('L2', value=elem.L2, vary=True, min=0.00, max=0.09)
+    params.add('alpha', value=squid.ALP, vary=True, min=0, max=2)
+    params.add('Loop', value=squid.LOOP, vary=True, min=0, max=500e-9)
 
     # Do Fit
     result = minimize(gta1, params, args=(xaxis3, data))
 
     # Present results of fitting
     print report_fit(result)
-    paramsToMem(results.params)
+    paramsToMem(result.params)
     update2(0)
     preFit(True)
     # Calculate and plot residual there
@@ -343,7 +332,6 @@ def fitcurve(val0):
     plt.draw()
     print 'Avg-sqr Residuals', abs(np.mean((residual * residual))) * 1e8
     return
-
 
 
 def paramsToMem(params1):
@@ -365,15 +353,12 @@ def preFitButton(val):
 
 
 def updateButton(val):
-    t0 = time()
     if elem.updateOnChange is False:
         return
     update(val, doPlot=False)       # write sliders to mem
     preFit(0)                       # find new Phase & Att values
     update2(0, update=False)        # Update Sliders, elem.updateOnChange=False
-    t3 = time()
     update(0)
-    print "update:", (time()-t3), 'TimeUpdate', (time()-t0)
 
 # --- Interface Buttons and Sliders ---
 # --- Sliders Start ---
@@ -391,29 +376,28 @@ axXPOS = plt.axes([0.25, 0.81, 0.50, 0.02], axisbg=axcolor)
 sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
 
 axALP = plt.axes([0.25, 0.46, 0.50, 0.02], axisbg=axcolor)
-sALP = plt.Slider(axALP, 'Alpha', 0.1, 2, valinit=1)
+sALP = plt.Slider(axALP, 'Alpha', 0, 2, valinit=1)
 axLOOP = plt.axes([0.25, 0.43, 0.50, 0.02], axisbg=axcolor)
-sLOOP = plt.Slider(axLOOP, 'Loop Inductance nH', 0, 1000, valinit=0.0)
+sLOOP = plt.Slider(axLOOP, 'Loop Inductance nH', 0, 500, valinit=0.0)
 
 axZ4 = plt.axes([0.25, 0.40, 0.50, 0.02], axisbg=axcolor)
 sZ4 = plt.Slider(axZ4, 'W.b. -> GND (Ohm)', 0.0001, 1.0, valinit=0.1)
 axZ3 = plt.axes([0.25, 0.37, 0.50, 0.02], axisbg=axcolor)
-sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 0.0, 400.0, valinit=50)
+sZ3 = plt.Slider(axZ3, 'Z3 (Ohm)', 45.0, 55.0, valinit=50)
 axL3 = plt.axes([0.25, 0.34, 0.50, 0.02], axisbg=axcolor)
-sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.9)
+sL3 = plt.Slider(axL3, 'L3 (mm)', 0.0, 20.0, valinit=0.0)
 axZ2 = plt.axes([0.25, 0.31, 0.50, 0.02], axisbg=axcolor)
-sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 0.0, 400.0, valinit=50)
+sZ2 = plt.Slider(axZ2, 'Z2 (Ohm)', 45.0, 55.0, valinit=50)
 axL2 = plt.axes([0.25, 0.28, 0.50, 0.02], axisbg=axcolor)
-sL2 = plt.Slider(axL2, 'L2 (mm)', 10, 90, valinit=40, valfmt='%1.5f')
+sL2 = plt.Slider(axL2, 'L2 (mm)', 0.0, 80, valinit=40, valfmt='%1.5f')
 axZ1 = plt.axes([0.25, 0.25, 0.50, 0.02], axisbg=axcolor)
-sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 0.0, 900.0, valinit=50)
+sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 45.0, 55.0, valinit=50)
 axL1 = plt.axes([0.25, 0.22, 0.50, 0.02], axisbg=axcolor)
-sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167,
-                 valinit=0.011625, valfmt='%1.10f')
+sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167, valinit=0.0, valfmt='%1.10f')
 axRsq = plt.axes([0.25, 0.19, 0.50, 0.02], axisbg=axcolor)
 sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=0.75)
 axCap = plt.axes([0.25, 0.16, 0.50, 0.02], axisbg=axcolor)
-sCap = plt.Slider(axCap, 'Cap (fF)', 0.01, 500.0, valinit=40)
+sCap = plt.Slider(axCap, 'Cap (fF)', 10, 400.0, valinit=40)
 axIc = plt.axes([0.25, 0.13, 0.50, 0.02], axisbg=axcolor)
 sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.4)
 axfreq = plt.axes([0.25, 0.1, 0.50, 0.02], axisbg=axcolor)
