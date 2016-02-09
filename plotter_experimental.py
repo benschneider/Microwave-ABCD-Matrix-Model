@@ -19,6 +19,7 @@ from ABCD import tline, sres, shunt, handler  # , terminator
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 from lmfit import minimize, Parameters, report_fit  # , Parameter
 import matplotlib.pyplot as plt
+import Gnuplot as gp
 
 plt.ion()
 
@@ -165,7 +166,7 @@ def find_nearest(someArray, value):
     return idx
 
 
-def update(val, doPlot=True):
+def update(val, doPlot=True, gnufig=False):
     '''
     This Function updates the variables in elem and squid
     if the slider value is changed.
@@ -202,6 +203,25 @@ def update(val, doPlot=True):
         xaxis2 = measdata.xaxis
         plotfig2(xaxis, xaxis2, elem.S11, measdata.ydat)
         plotfig5(xaxis, xaxis2, elem.S11, measdata.ydat)
+    if gnufig is True:
+        makeGnuFig()
+    return
+
+
+def makeGnuFig():
+    resultmat = np.zeros([len(squid.xaxis), 5])
+    resultmat[:, 0] = squid.xaxis
+    resultmat[:, 1] = measdata.ydat.real
+    resultmat[:, 2] = squid.S11.real
+    resultmat[:, 3] = measdata.ydat.imag
+    resultmat[:, 4] = squid.S11.imag
+    np.savetxt('extdata.dat', resultmat, delimiter='\t')
+    # Plot in Gnuplot
+    g1 = gp.Gnuplot(persist=0, debug=1)
+    g1("plot 'extdata.dat' u 1:2 w l t 'Meas.real'")
+    g1("plot 'extdata.dat' u 1:3 w l t 'Fit.real'")
+    g1("plot 'extdata.dat' u 1:4 w l t 'Meas.imag'")
+    g1("plot 'extdata.dat' u 1:5 w l t 'Fit.imag'")
     return
 
 
@@ -298,15 +318,15 @@ def fitcurve(val0):
 
     # Define fitting parameters
     params = Parameters()
-    params.add('CapfF', value=squid.Cap*1e15, vary=True, min=30, max=80)
-    params.add('IcuA', value=squid.Ic*1e6, vary=True, min=3.0, max=4.0)
+    params.add('CapfF', value=squid.Cap*1e15, vary=True, min=30, max=90)
+    params.add('IcuA', value=squid.Ic*1e6, vary=True, min=3.0, max=4.5)
     params.add('WbpH', value=squid.Wb*1e12, vary=True, min=0, max=1500)
     params.add('LooppH', value=squid.LOOP*1e12, vary=True, min=0.0, max=100)
     params.add('alpha', value=squid.ALP, vary=True, min=0.98, max=1.02)
     params.add('R', value=squid.R, vary=True, min=1, max=20e3)
-    params.add('Z1', value=elem.Z1, vary=True, min=40, max=60)
-    params.add('Z2', value=elem.Z2, vary=True, min=40, max=60)
-    params.add('Z3', value=elem.Z3, vary=True, min=40, max=60)
+    params.add('Z1', value=elem.Z1, vary=False, min=40, max=60)
+    params.add('Z2', value=elem.Z2, vary=False, min=40, max=60)
+    params.add('Z3', value=elem.Z3, vary=False, min=40, max=60)
     params.add('L2', value=elem.L2, vary=False, min=0.00, max=0.09)
 
     # Crop region to fit
