@@ -45,7 +45,7 @@ elem.L3 = 0.01
 elem.Z4 = 0.1           # Ohm; Wire bonds conductance to GND (-45dB isolation)
 # m/s; approx. velocity in a coaxial 2/3 * speed of light
 elem.v = 2.0e8
-squid.Wb = 100e-12        # Aprox: Lw (nH) = 5.08x10-3 * L * (ln(4*L/D) - 1)
+squid.Wb = 1000e-12        # Aprox: Lw (nH) = 5.08x10-3 * L * (ln(4*L/D) - 1)
 squid.LOOP = 1e-30
 squid.ALP = 1.0
 squid.f0 = 5e9
@@ -146,7 +146,7 @@ def plotfig5(xaxis, xaxis2, S11, ydat):
     g1.plot(xaxis, S11.real)
     g1.plot(xaxis2, ydat.real)
     g1.axis('tight')
-    g2 = fig5.add_subplot(2, 1, 2)
+    g2 = fig5.add_subplot(2, 1, 2, sharex=g1)
     g2.hold(True)
     g2.set_ylabel("Imag", fontsize=12)
     g2.set_xlabel("Flux/Flux0", fontsize=12)
@@ -208,20 +208,31 @@ def update(val, doPlot=True, gnufig=False):
     return
 
 
-def makeGnuFig():
-    resultmat = np.zeros([len(squid.xaxis), 5])
+def makeGnuFig(filename):
+    resultmat = np.zeros([len(squid.xaxis), 9])
+    S11 = elem.S11
+    ydat = measdata.ydat
     resultmat[:, 0] = squid.xaxis
-    resultmat[:, 1] = measdata.ydat.real
-    resultmat[:, 2] = squid.S11.real
-    resultmat[:, 3] = measdata.ydat.imag
-    resultmat[:, 4] = squid.S11.imag
-    np.savetxt('extdata.dat', resultmat, delimiter='\t')
+    resultmat[:, 1] = ydat.real
+    resultmat[:, 2] = S11.real
+    resultmat[:, 3] = ydat.imag
+    resultmat[:, 4] = S11.imag
+    resultmat[:, 5] = abs(ydat)
+    resultmat[:, 6] = abs(S11)
+    resultmat[:, 7] = np.unwrap(np.angle(S11), discont=pi)
+    resultmat[:, 8] = np.unwrap(np.angle(ydat), discont=pi)
+    np.savetxt(filename, resultmat, delimiter='\t')
     # Plot in Gnuplot
-    g1 = gp.Gnuplot(persist=0, debug=1)
-    g1("plot 'extdata.dat' u 1:2 w l t 'Meas.real'")
-    g1("plot 'extdata.dat' u 1:3 w l t 'Fit.real'")
-    g1("plot 'extdata.dat' u 1:4 w l t 'Meas.imag'")
-    g1("plot 'extdata.dat' u 1:5 w l t 'Fit.imag'")
+    g1 = gp.Gnuplot(persist=1, debug=1)
+    g1("plot '" + str(filename) + "' u 1:2 w l t 'Meas.real'")
+    g1("replot '" + str(filename) + "' u 1:3 w l t 'Fit.real'")
+    g1("replot '" + str(filename) + "' u 1:4 w l t 'Meas.imag'")
+    g1("replot '" + str(filename) + "' u 1:5 w l t 'Fit.imag'")
+    g2 = gp.Gnuplot(persist=1, debug=1)
+    g2("plot '" + str(filename) + "' u 1:6 w l t 'Meas.mag'")
+    g2("replot '" + str(filename) + "' u 1:7 w l t 'Fit.mag'")
+    g2("replot '" + str(filename) + "' u 1:8 w l t 'Meas.phase'")
+    g2("replot '" + str(filename) + "' u 1:9 w l t 'Fit.phase'")
     return
 
 
@@ -321,8 +332,8 @@ def fitcurve(val0):
     params.add('CapfF', value=squid.Cap*1e15, vary=True, min=30, max=90)
     params.add('IcuA', value=squid.Ic*1e6, vary=True, min=3.0, max=4.5)
     params.add('WbpH', value=squid.Wb*1e12, vary=True, min=0, max=1500)
-    params.add('LooppH', value=squid.LOOP*1e12, vary=True, min=0.0, max=100)
-    params.add('alpha', value=squid.ALP, vary=True, min=0.98, max=1.02)
+    params.add('LooppH', value=squid.LOOP*1e12, vary=False, min=0.0, max=100)
+    params.add('alpha', value=squid.ALP, vary=False, min=0.98, max=1.02)
     params.add('R', value=squid.R, vary=True, min=1, max=20e3)
     params.add('Z1', value=elem.Z1, vary=False, min=40, max=60)
     params.add('Z2', value=elem.Z2, vary=False, min=40, max=60)
@@ -410,10 +421,9 @@ sPHI = plt.Slider(axPHI, 'Phase offset', -np.pi, np.pi, valinit=0)
 axXSC = plt.axes([0.25, 0.84, 0.50, 0.02], axisbg=axcolor)
 sXSC = plt.Slider(axXSC, 'x-scale', 0.9, 1.1, valinit=1.04187, valfmt='%1.5f')
 axXPOS = plt.axes([0.25, 0.81, 0.50, 0.02], axisbg=axcolor)
-sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49062, valfmt='%1.5f')
-
+sXPOS = plt.Slider(axXPOS, 'x-pos', -0.5, 0.5, valinit=-0.49125, valfmt='%1.5f')
 axWb = plt.axes([0.25, 0.49, 0.50, 0.02], axisbg=axcolor)
-sWb = plt.Slider(axWb, 'WireBond Ind. pH', 0, 2000, valinit=900.0)
+sWb = plt.Slider(axWb, 'WireBond Ind. pH', 0, 2000, valinit=1200.0)
 axALP = plt.axes([0.25, 0.46, 0.50, 0.02], axisbg=axcolor)
 sALP = plt.Slider(axALP, 'Alpha', 0, 2, valinit=1)
 axLOOP = plt.axes([0.25, 0.43, 0.50, 0.02], axisbg=axcolor)
@@ -433,11 +443,11 @@ sZ1 = plt.Slider(axZ1, 'Z1 (Ohm)', 40.0, 60.0, valinit=50)
 axL1 = plt.axes([0.25, 0.22, 0.50, 0.02], axisbg=axcolor)
 sL1 = plt.Slider(axL1, 'L1 (m)', 0.01, 0.0167, valinit=0.0, valfmt='%1.10f')
 axRsq = plt.axes([0.25, 0.19, 0.50, 0.02], axisbg=axcolor)
-sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=0.75)
+sRsq = plt.Slider(axRsq, 'Rsq (kOhm)', 0.01, 10.0, valinit=2.00)
 axCap = plt.axes([0.25, 0.16, 0.50, 0.02], axisbg=axcolor)
 sCap = plt.Slider(axCap, 'Cap (fF)', 0, 400.0, valinit=60)
 axIc = plt.axes([0.25, 0.13, 0.50, 0.02], axisbg=axcolor)
-sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.4)
+sIc = plt.Slider(axIc, 'Ic (uA)', 0.1, 10.0, valinit=3.6)
 axfreq = plt.axes([0.25, 0.1, 0.50, 0.02], axisbg=axcolor)
 sFreq = plt.Slider(axfreq, 'Freq (GHz)', measdata.freq[0] / 1e9,
                    measdata.freq[-1] / 1e9, valinit=measdata.freq[0] / 1e9)
