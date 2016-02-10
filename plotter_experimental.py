@@ -66,7 +66,7 @@ def get_sMatrix(elem, squid):
     Assembly is done for each flux point and change in Zsq
     '''
     Zsq = get_Zsq(squid)
-    b = 2.0 * pi * squid.f0 / 2.0e-8
+    b = 2.0 * pi * squid.f0 / 2.0e8
     SM = np.zeros((len(Zsq), 2, 2)) * 1j  # complex matrix
     M1 = (tline(elem.Z1, b, elem.L1) *
           tline(elem.Z2, b, elem.L2) *
