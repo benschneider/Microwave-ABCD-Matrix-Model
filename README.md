@@ -4,8 +4,7 @@
 
 ### Circuit diagram
 
-![alt tag](https://cloud.githubusercontent.com/assets/4573907/8725273/a0e0dba8-2bd3-11e5-86a0-8202fd2715d2.png)
-
+![alt tag](https://cloud.githubusercontent.com/assets/4573907/12975622/7850b250-d0bd-11e5-8500-1065c85d3a93.png)
 #### settings are in plotter_experimental.py 
 
 filename = 'target.hdf5' --- define datafile to be loaded for comparison
