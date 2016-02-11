@@ -26,15 +26,7 @@ ABCD.py 	---		ABCD Matrixes
 
 parsers.py 	---		Data load and save functions
 
-interface.py	---		Loading buttons (contains an update function and a few more)
-
-fitdata.py	---		Fitting algorithm
-
-
 ## Currently working on
-
-fitdata.py
-- [ ] Optimize fitting on complex data
 
 interface.py
 - [ ] Cleanup poss. use a .uic file (low priority atm)
