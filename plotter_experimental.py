@@ -7,6 +7,7 @@ SQUID at the end of a Transmission line.
 ABCD-Matrix: M1, M2  each represent one element.
 Ref: 'Microwave Engineering 3rd Edition' by David M. Pozar p. 185
 '''
+
 # from time import time
 from numpy import pi, cos, abs, log10
 import numpy as np
