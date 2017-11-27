@@ -20,7 +20,7 @@ from ABCD import tline, sres, shunt, handler  # , terminator
 # from scipy.io import loadmat, savemat, whosmat #to save and load .mat (matlab)
 from lmfit import minimize, Parameters, report_fit  # , Parameter
 import matplotlib.pyplot as plt
-import Gnuplot as gp
+import PyGnuplot as gp
 
 plt.ion()
 
