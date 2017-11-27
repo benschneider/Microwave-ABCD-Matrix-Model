@@ -1,6 +1,6 @@
 # ABCD - SQUID - Model
 
-## Script to model the reflection of a SQUID at the end of a Transmission line. (under construction)
+## Script to model the reflection of a SQUID at the end of a Transmission line.
 
 ### Circuit diagram
 
@@ -26,7 +26,7 @@ ABCD.py 	---		ABCD Matrixes
 
 parsers.py 	---		Data load and save functions
 
-## Currently working on
+## Next on
 
 interface.py
 - [ ] Cleanup poss. use a .uic file (low priority atm)
